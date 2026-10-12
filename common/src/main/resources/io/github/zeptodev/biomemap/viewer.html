@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biome Map</title>
+<style>
+  :root {
+    --bg: #0b0d11;
+    --panel: rgba(19, 22, 28, 0.94);
+    --border: #2b313c;
+    --text: #e7e9ee;
+    --muted: #98a1b0;
+    --accent: #7cb4ff;
+    --hover: #212733;
+    --selected: #22344f;
+    --input: #0e1116;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); overflow: hidden;
+    font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  button { font: inherit; color: inherit; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+
+  #map { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; outline: none; }
+  #map.dragging { cursor: grabbing; }
+
+  .panel {
+    position: fixed; z-index: 2; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+  .icon {
+    width: 28px; height: 28px; display: inline-grid; place-items: center; padding: 0; flex: none;
+    border: 1px solid var(--border); border-radius: 7px; background: var(--input); cursor: pointer; line-height: 1;
+  }
+  .icon:hover, .toggle:hover { border-color: #3d4554; background: var(--hover); }
+  .link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent); text-align: left; }
+  .link:hover { text-decoration: underline; }
+  button:focus-visible, input:focus-visible, #map:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* Sidebar: map details, then the biome list. */
+  #side { top: 12px; right: 12px; bottom: 12px; width: 320px; display: flex; flex-direction: column; overflow: hidden; }
+  #side .head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 0 14px; }
+  #side h1 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #side .body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #side-toggle { display: none; }
+  #side.collapsed .body { display: none; }
+  #side.collapsed .head { padding-bottom: 12px; }
+  #facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 8px 14px 0; }
+  #facts dt { color: var(--muted); }
+  #facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  #gen { margin: 8px 14px 0; }
+  #help { margin: 10px 14px 0; padding: 10px 0 0; border-top: 1px solid var(--border); }
+  #help[hidden] { display: none; }
+  #help ul { margin: 0; padding-left: 18px; }
+  #help li { margin: 3px 0; }
+  kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--input); }
+  .tabs { display: flex; gap: 2px; margin: 10px 12px 0; border-bottom: 1px solid var(--border); }
+  .tabs[hidden] { display: none; }
+  .tab {
+    flex: 1; padding: 6px 8px 7px; background: none; border: 0; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; color: var(--muted); cursor: pointer; font-weight: 500;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tab .count { font-size: 12px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .pane[hidden] { display: none; }
+  .search-row { display: flex; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  #search {
+    flex: 1; min-width: 0; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--input); color: var(--text); font: inherit;
+  }
+  #sel-bar { display: flex; gap: 8px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border); background: #18202d; }
+  #sel-bar[hidden] { display: none; }
+  #sel-text { flex: 1; }
+  #legend { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; flex: 1; min-height: 0; }
+  #legend li { display: flex; align-items: center; gap: 9px; padding: 3px 8px 3px 14px; cursor: pointer; user-select: none; }
+  #legend li:hover { background: var(--hover); }
+  #legend li[aria-selected="true"] { background: var(--selected); }
+  #legend li[hidden] { display: none; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; flex: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
+  .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .loc { visibility: hidden; width: 24px; height: 22px; border: 0; border-radius: 5px; background: none; cursor: pointer; color: var(--muted); padding: 0; }
+  #legend li:hover .loc, .loc:focus-visible { visibility: visible; }
+  .loc:hover { color: var(--text); background: #2c3442; }
+  #side footer { padding: 8px 14px; border-top: 1px solid var(--border); }
+  #side footer:empty { display: none; }
+
+  /* Structure tree: mod, then structure type, then variant. */
+  .st-actions { display: flex; gap: 14px; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--border); }
+  #st-shown { margin-left: auto; font-variant-numeric: tabular-nums; }
+  #st-tree, #st-tree ul { list-style: none; margin: 0; padding: 0; }
+  #st-tree { overflow-y: auto; flex: 1; min-height: 0; padding: 4px 0; }
+  #st-tree li[hidden], #st-tree ul[hidden] { display: none; }
+  .st-row { display: flex; align-items: center; gap: 7px; padding: 3px 8px 3px 8px; cursor: pointer; user-select: none; }
+  .st-row:hover { background: var(--hover); }
+  .st-row.mod { font-weight: 600; padding-top: 5px; padding-bottom: 5px; }
+  .st-row.group { padding-left: 51px; }
+  .st-row.group.has-kinds { padding-left: 8px; }
+  .st-row.group.has-kinds .caret { margin-left: 18px; }
+  .st-row.kind { padding-left: 76px; }
+  .st-row input { margin: 0; flex: none; accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+  .caret {
+    width: 18px; height: 18px; flex: none; padding: 0; border: 0; border-radius: 4px; background: none;
+    color: var(--muted); cursor: pointer; display: inline-grid; place-items: center; transition: transform 0.12s;
+  }
+  .caret:hover { color: var(--text); background: #2c3442; }
+  .caret[aria-expanded="false"] { transform: rotate(-90deg); }
+  .st-row .loc { visibility: hidden; }
+  .st-row:hover .loc { visibility: visible; }
+  .mk {
+    width: 18px; height: 18px; flex: none; border-radius: 50%; display: inline-grid; place-items: center;
+    font: 700 8px/1 system-ui, -apple-system, "Segoe UI", sans-serif; box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.7);
+  }
+  .mk.one { font-size: 10px; }
+  #ro-structure { display: flex; align-items: center; gap: 8px; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); }
+  #ro-structure:empty { display: none; }
+  #ro-structure .txt { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
+  #ro-structure .what { font-weight: 600; white-space: nowrap; }
+
+  /* Cursor readout and map controls float over the map. */
+  #readout { left: 12px; bottom: 12px; min-width: 260px; max-width: calc(100vw - 24px); padding: 9px 13px; }
+  #ro-coords { font-variant-numeric: tabular-nums; }
+  #ro-coords.coords { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #ro-biome { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-weight: 600; }
+  #ro-biome:empty { display: none; }
+  #ro-sw[hidden] { display: none; }
+  #ro-id:empty { display: none; }
+  #ro-id { margin-top: 1px; }
+  #controls { right: 344px; bottom: 12px; display: flex; gap: 6px; align-items: center; padding: 6px; }
+  .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 2px; }
+  .toggle {
+    height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--input);
+    color: var(--muted); cursor: pointer;
+  }
+  .toggle[aria-pressed="true"] { color: var(--text); background: #1d2a3d; border-color: #35507a; }
+  .toggle[hidden] { display: none; }
+
+  #toast {
+    position: fixed; left: 50%; top: 16px; transform: translate(-50%, -8px); z-index: 5; opacity: 0; pointer-events: none;
+    background: #e7e9ee; color: #11141a; padding: 7px 14px; border-radius: 8px; font-weight: 500; max-width: calc(100vw - 32px);
+    transition: opacity 0.15s, transform 0.15s; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #error { top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: min(480px, calc(100vw - 32px)); padding: 18px 20px; z-index: 6; }
+  #error[hidden] { display: none; }
+
+  @media (hover: none) {
+    .loc, .st-row .loc { visibility: visible; }
+  }
+  /* Phones: readout on top, the sidebar becomes a bottom sheet. */
+  @media (max-width: 760px) {
+    #side { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: 56vh; }
+    #side.collapsed { height: auto; }
+    #side-toggle { display: inline-grid; }
+    /* Toolbar on top, readout under it: the readout grows with what is under the finger. */
+    #controls { top: 8px; left: 8px; right: 8px; bottom: auto; padding: 5px; gap: 4px; flex-wrap: wrap; }
+    #controls .sep { display: none; }
+    #t-relief { margin-left: auto; }
+    #readout { top: calc(var(--controls-h, 40px) + 14px); left: 8px; right: 8px; bottom: auto; min-width: 0; padding: 8px 12px; }
+    .toggle { padding: 0 7px; }
+    #toast { top: auto; bottom: 90px; }
+    #side:not(.collapsed) ~ #toast { bottom: calc(56vh + 24px); }
+  }
+</style>
+</head>
+<body>
+<canvas id="map" tabindex="0" aria-label="Biome map. Drag to pan, scroll to zoom, arrow keys to move."></canvas>
+
+<aside id="side" class="panel" aria-label="Map details and biomes">
+  <div class="head">
+    <h1 id="title">Biome map</h1>
+    <button id="help-btn" class="icon" type="button" aria-expanded="false" aria-controls="help" title="Help">?</button>
+    <button id="side-toggle" class="icon" type="button" aria-expanded="true" title="Show or hide details">▾</button>
+  </div>
+  <div class="body">
+    <dl id="facts">
+      <dt>Seed</dt><dd><button id="seed" class="link mono" type="button" title="Copy seed"></button></dd>
+      <dt>World</dt><dd id="dim"></dd>
+      <dt>Layer</dt><dd id="layer"></dd>
+      <dt>Area</dt><dd id="area"></dd>
+    </dl>
+    <p id="gen" class="muted small"></p>
+    <div id="help" class="small" hidden>
+      <ul>
+        <li>Drag to pan; scroll or pinch to zoom.</li>
+        <li>Click the map (long-press on touch screens) to copy a <span class="mono">/tp</span> command for that spot.</li>
+        <li>Click biomes below to highlight them; <span aria-hidden="true">⌖</span> jumps to the nearest one.</li>
+        <li>Under Structures, tick mods, structure types or single variants to show or hide them. Point at a marker for details; clicking it copies a <span class="mono">/tp</span> to it.</li>
+        <li>Keys: <kbd>+</kbd> <kbd>-</kbd> zoom, <kbd>0</kbd> fit, arrows pan, <kbd>R</kbd> relief, <kbd>G</kbd> grid, <kbd>M</kbd> markers, <kbd>S</kbd> structures, <kbd>/</kbd> search, <kbd>Esc</kbd> clear highlight.</li>
+        <li>The grid shows chunks (16 blocks) when zoomed in and regions (512 blocks) further out.</li>
+        <li>The address bar remembers the view, so you can bookmark a spot.</li>
+      </ul>
+    </div>
+    <div id="tabs" class="tabs" role="tablist" aria-label="Lists">
+      <button id="tab-biomes" class="tab" role="tab" type="button" aria-selected="true" aria-controls="pane-biomes">Biomes <span id="count-biomes" class="count"></span></button>
+      <button id="tab-structures" class="tab" role="tab" type="button" aria-selected="false" aria-controls="pane-structures" tabindex="-1">Structures <span id="count-structures" class="count"></span></button>
+    </div>
+    <div class="search-row">
+      <input id="search" type="search" placeholder="Filter biomes" autocomplete="off" spellcheck="false" aria-label="Filter the list">
+    </div>
+    <div id="pane-biomes" class="pane" role="tabpanel" aria-labelledby="tab-biomes">
+      <div id="sel-bar" class="small" hidden><span id="sel-text"></span><button id="sel-clear" class="link" type="button">Clear</button></div>
+      <ul id="legend" role="listbox" aria-multiselectable="true" aria-label="Biomes in this map"></ul>
+      <footer id="legend-foot" class="muted small"></footer>
+    </div>
+    <div id="pane-structures" class="pane" role="tabpanel" aria-labelledby="tab-structures" hidden>
+      <div class="st-actions small">
+        <button id="st-all" class="link" type="button">Show all</button>
+        <button id="st-none" class="link" type="button">Hide all</button>
+        <span id="st-shown" class="muted"></span>
+      </div>
+      <ul id="st-tree" aria-label="Structures in this map"></ul>
+      <footer id="st-foot" class="muted small"></footer>
+    </div>
+  </div>
+</aside>
+
+<div id="readout" class="panel">
+  <div id="ro-coords">Loading map…</div>
+  <div id="ro-biome"></div>
+  <div id="ro-id" class="muted small mono"></div>
+  <div id="ro-structure"></div>
+</div>
+
+<div id="controls" class="panel" role="toolbar" aria-label="Map controls">
+  <button id="zoom-in" class="icon" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button>
+  <button id="zoom-out" class="icon" type="button" title="Zoom out (-)" aria-label="Zoom out">−</button>
+  <button id="zoom-fit" class="icon" type="button" title="Show the whole map (0)" aria-label="Show the whole map">⤢</button>
+  <span class="sep"></span>
+  <button id="t-relief" class="toggle" type="button" aria-pressed="true" title="Terrain shading (R)">Relief</button>
+  <button id="t-grid" class="toggle" type="button" aria-pressed="true" title="Chunk and region grid (G)">Grid</button>
+  <button id="t-markers" class="toggle" type="button" aria-pressed="true" title="Spawn and center markers (M)">Markers</button>
+  <button id="t-structures" class="toggle" type="button" aria-pressed="true" title="Structure markers (S)">Structures</button>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="error" class="panel" role="alert" hidden></div>
+
+<script type="application/json" id="biomemap-data">@@BIOMEMAP_DATA@@</script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+
+  function fail(message) {
+    const box = $('error');
+    box.textContent = message;
+    box.hidden = false;
+    $('ro-coords').textContent = 'The map could not be loaded.';
+  }
+
+  let D;
+  try {
+    D = JSON.parse($('biomemap-data').textContent);
+  } catch (e) {
+    fail('This file contains no map data. Open one of the files that /biomemap creates in the biomemaps folder.');
+    return;
+  }
+
+  const W = D.width, H = D.height, STEP = D.step, N = W * H;
+  const OX = D.originX, OZ = D.originZ;
+  const B = D.biomes, NB = B.length;
+  const EXACT = D.heightKind === 'exact';
+  const TOUCH_ONLY = window.matchMedia('(hover: none)').matches;
+  const pal = new Uint8Array(NB * 3);
+  const water = new Uint8Array(NB);
+  B.forEach((b, i) => {
+    const v = parseInt(b.color.slice(1), 16) || 0;
+    pal[i * 3] = (v >> 16) & 255;
+    pal[i * 3 + 1] = (v >> 8) & 255;
+    pal[i * 3 + 2] = v & 255;
+    water[i] = b.water ? 1 : 0;
+  });
+
+  // Structures: groups are structure types (sets), kinds are single structures, points are [kind, x, y, z].
+  const ST = D.structures || null;
+  const SG = ST ? ST.groups : [], SK = ST ? ST.kinds : [], SP = ST ? ST.points : [];
+  const NS = SP.length >> 2;
+  const sKind = new Uint16Array(NS), sX = new Int32Array(NS), sY = new Int32Array(NS), sZ = new Int32Array(NS);
+  for (let i = 0; i < NS; i++) {
+    sKind[i] = SP[i * 4]; sX[i] = SP[i * 4 + 1]; sY[i] = SP[i * 4 + 2]; sZ[i] = SP[i * 4 + 3];
+  }
+  const kindCount = new Uint32Array(SK.length);
+  for (let i = 0; i < NS; i++) kindCount[sKind[i]]++;
+  const groupKinds = SG.map(() => []);
+  SK.forEach((k, i) => groupKinds[k.group].push(i));
+  const groupCount = groupKinds.map((ks) => ks.reduce((n, k) => n + kindCount[k], 0));
+  // Very common types (mineshafts, nether fossils) would bury everything else, so they start hidden.
+  const kindOn = new Uint8Array(SK.length).fill(1);
+  const hiddenAtStart = [];
+  SG.forEach((g, gi) => {
+    if (groupCount[gi] > 120 && groupCount[gi] > NS * 0.3) {
+      groupKinds[gi].forEach((k) => { kindOn[k] = 0; });
+      hiddenAtStart.push(g.name);
+    }
+  });
+  const inkFor = (hex) => {
+    const v = parseInt(hex.slice(1), 16) || 0;
+    return 0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255) > 150 ? '#14171c' : '#ffffff';
+  };
+  const kindInk = SK.map((k) => inkFor(k.color));
+
+  const canvas = $('map');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const off = document.createElement('canvas');
+  off.width = W;
+  off.height = H;
+  const octx = off.getContext('2d');
+
+  let grid = null;      // Uint16Array: biome index per sample
+  let heights = null;   // Int16Array: surface Y per sample
+  let shade = null;     // Uint8ClampedArray: relief brightness, 128 = unchanged
+  const selected = new Set();
+  const opts = { relief: true, grid: true, markers: true, structures: true };
+  const view = { cx: OX + W * STEP / 2, cz: OZ + H * STEP / 2, scale: 1 }; // scale = CSS px per block
+  let cssW = 1, cssH = 1, dpr = 1, minScale = 0.01;
+  const MAX_SCALE = 48;
+  let pointer = null;   // where the readout points, CSS px
+  let pulse = null;     // {x, z, t}: ring shown after jumping to a biome or structure
+  let frame = 0;
+  let hoverStructure = -1;  // structure marker under the pointer
+  let markerRadius = 8;     // CSS px of the markers drawn last, for hit testing
+  let activeTab = 'biomes';
+
+  // ---------- helpers ----------
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const pretty = (s) => s.replace(/^.*[:/]/, '').split('_').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+  const dimName = (id) => ({ 'minecraft:overworld': 'Overworld', 'minecraft:the_nether': 'The Nether', 'minecraft:the_end': 'The End' })[id] || pretty(id);
+  const pct = (n) => { const p = n * 100 / N; return p >= 0.1 ? p.toFixed(1) + '%' : '<0.1%'; };
+  const toBlockX = (px) => view.cx + (px - cssW / 2) / view.scale;
+  const toBlockZ = (py) => view.cz + (py - cssH / 2) / view.scale;
+  const clampScale = (s) => clamp(s, minScale, MAX_SCALE);
+
+  function sampleIndex(bx, bz) {
+    const i = Math.floor((bx - OX) / STEP), j = Math.floor((bz - OZ) / STEP);
+    return i < 0 || j < 0 || i >= W || j >= H ? -1 : j * W + i;
+  }
+
+  async function inflate(b64) {
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('This browser is too old to open the map. Please use a current version of Chrome, Edge, Firefox or Safari.');
+    }
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+    return new Response(stream).arrayBuffer();
+  }
+
+  let toastTimer = 0;
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  async function copy(text, label) {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove();
+    }
+    toast(ok ? 'Copied ' + (label || text) : text);
+  }
+
+  // ---------- details ----------
+  function fillInfo() {
+    const seed = D.seed;
+    document.title = 'Biome map · seed ' + seed;
+    $('seed').textContent = seed;
+    $('seed').addEventListener('click', () => copy(seed, 'seed ' + seed));
+    $('dim').textContent = dimName(D.dimension);
+    $('layer').textContent = D.mode === 'y' ? 'Biomes at Y ' + D.y
+      : D.mode === 'exact' ? 'Surface biomes (exact terrain height)' : 'Surface biomes';
+    $('area').textContent = `${W * STEP} × ${H * STEP} blocks centered on X ${D.centerX}, Z ${D.centerZ} · ${STEP} blocks per pixel`;
+    const secs = (D.elapsedMs / 1000).toFixed(D.elapsedMs < 10000 ? 1 : 0);
+    $('gen').textContent = `Minecraft ${D.minecraft} · generated ${D.generated} in ${secs}\u00a0s · Biome Map ${D.modVersion}`;
+    $('help-btn').addEventListener('click', () => {
+      const help = $('help');
+      help.hidden = !help.hidden;
+      $('help-btn').setAttribute('aria-expanded', String(!help.hidden));
+      if (!help.hidden && $('side').classList.contains('collapsed')) toggleSide();
+    });
+    $('side-toggle').addEventListener('click', toggleSide);
+    if (!heights) $('t-relief').hidden = true;
+    if (!D.spawn) $('t-markers').title = 'Map center marker (M)';
+  }
+
+  function toggleSide() {
+    const side = $('side');
+    const collapsed = side.classList.toggle('collapsed');
+    $('side-toggle').setAttribute('aria-expanded', String(!collapsed));
+    $('side-toggle').textContent = collapsed ? '▴' : '▾';
+  }
+
+  // ---------- legend ----------
+  const rows = [];
+  function buildLegend() {
+    const list = $('legend');
+    const order = B.map((b, i) => i).filter((i) => B[i].count > 0)
+      .sort((a, b) => B[b].count - B[a].count || B[a].name.localeCompare(B[b].name));
+    const frag = document.createDocumentFragment();
+    for (const i of order) {
+      const b = B[i];
+      const li = document.createElement('li');
+      li.dataset.i = String(i);
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', 'false');
+      li.title = b.id;
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = b.color;
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = b.name;
+      const pc = document.createElement('span');
+      pc.className = 'pc';
+      pc.textContent = pct(b.count);
+      const loc = document.createElement('button');
+      loc.className = 'loc';
+      loc.type = 'button';
+      loc.textContent = '⌖';
+      loc.title = 'Go to the nearest ' + b.name;
+      loc.setAttribute('aria-label', 'Go to the nearest ' + b.name);
+      li.append(sw, nm, pc, loc);
+      frag.appendChild(li);
+      rows.push({ li, key: (b.name + ' ' + b.id).toLowerCase() });
+    }
+    list.appendChild(frag);
+    $('legend-foot').textContent = `${order.length} biome${order.length === 1 ? '' : 's'} · ${W} × ${H} samples`;
+
+    list.addEventListener('click', (e) => {
+      const li = e.target.closest('li');
+      if (!li) return;
+      const i = Number(li.dataset.i);
+      if (e.target.closest('.loc')) {
+        locate(i);
+        return;
+      }
+      if (selected.has(i)) selected.delete(i); else selected.add(i);
+      li.setAttribute('aria-selected', String(selected.has(i)));
+      selectionChanged();
+    });
+    $('sel-clear').addEventListener('click', clearSelection);
+  }
+
+  function filterBiomes(q) {
+    for (const r of rows) r.li.hidden = q !== '' && !r.key.includes(q);
+  }
+
+  function selectionChanged() {
+    const bar = $('sel-bar');
+    if (selected.size === 0) {
+      bar.hidden = true;
+    } else {
+      let count = 0;
+      selected.forEach((i) => { count += B[i].count; });
+      $('sel-text').textContent = `Highlighting ${selected.size} biome${selected.size === 1 ? '' : 's'} · ${pct(count)} of the map`;
+      bar.hidden = false;
+    }
+    renderBase();
+  }
+
+  function clearSelection() {
+    if (selected.size === 0) return;
+    selected.clear();
+    for (const r of rows) r.li.setAttribute('aria-selected', 'false');
+    selectionChanged();
+  }
+
+  /** Block coordinates at the middle of the part of the map that panels don't cover. */
+  function visibleCenter() {
+    const a = freeArea();
+    return { x: toBlockX((a.x0 + a.x1) / 2), z: toBlockZ((a.y0 + a.y1) / 2) };
+  }
+
+  /** Centers the view on the sample of biome b nearest to what is on screen now. */
+  function locate(b) {
+    const c = visibleCenter();
+    const ci = (c.x - OX) / STEP - 0.5, cj = (c.z - OZ) / STEP - 0.5;
+    let best = -1, bestD = Infinity;
+    for (let j = 0; j < H; j++) {
+      const dj = (j - cj) * (j - cj);
+      if (dj >= bestD) continue;
+      const o = j * W;
+      for (let i = 0; i < W; i++) {
+        if (grid[o + i] !== b) continue;
+        const d = dj + (i - ci) * (i - ci);
+        if (d < bestD) { bestD = d; best = o + i; }
+      }
+    }
+    if (best < 0) return;
+    const x = OX + (best % W + 0.5) * STEP, z = OZ + (Math.floor(best / W) + 0.5) * STEP;
+    view.scale = clampScale(Math.max(view.scale, 8 / STEP));
+    centerOn(x, z);
+    pulse = { x, z, t: performance.now() };
+    toast(`${B[b].name} at ${Math.floor(x)}, ${Math.floor(z)}`);
+    viewChanged();
+  }
+
+  // ---------- structures ----------
+  const tree = { mods: [], groups: [], kinds: [] };
+  const collapsed = new Set();   // lists the user (or the defaults) closed
+
+  function markerChip(kind) {
+    const k = SK[kind];
+    const chip = document.createElement('span');
+    chip.className = 'mk' + (k.label.length === 1 ? ' one' : '');
+    chip.style.background = k.color;
+    chip.style.color = kindInk[kind];
+    chip.textContent = k.label;
+    chip.setAttribute('aria-hidden', 'true');
+    return chip;
+  }
+
+  function stRow(cls, kinds, name, count, chipKind) {
+    const row = document.createElement('div');
+    row.className = 'st-row ' + cls;
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.setAttribute('aria-label', 'Show ' + name);
+    row.append(box);
+    if (chipKind !== null) row.append(markerChip(chipKind));
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = name;
+    const pc = document.createElement('span');
+    pc.className = 'pc';
+    pc.textContent = String(count);
+    row.append(nm, pc);
+    if (chipKind !== null) {
+      const loc = document.createElement('button');
+      loc.className = 'loc';
+      loc.type = 'button';
+      loc.textContent = '⌖';
+      loc.title = 'Go to the nearest ' + name;
+      loc.setAttribute('aria-label', loc.title);
+      row.append(loc);
+    }
+    row.kinds = kinds;
+    return { row, box };
+  }
+
+  function addCaret(row, list, label) {
+    const caret = document.createElement('button');
+    caret.className = 'caret';
+    caret.type = 'button';
+    caret.textContent = '▾';
+    caret.setAttribute('aria-label', label);
+    caret.setAttribute('aria-expanded', String(!list.hidden));
+    caret.addEventListener('click', () => {
+      list.hidden = !list.hidden;
+      caret.setAttribute('aria-expanded', String(!list.hidden));
+      if (list.hidden) collapsed.add(list); else collapsed.delete(list);
+    });
+    row.prepend(caret);
+    list.caret = caret;
+  }
+
+  function buildStructures() {
+    if (!ST) {
+      $('tabs').hidden = true;
+      $('t-structures').hidden = true;
+      return;
+    }
+    $('count-biomes').textContent = String(B.filter((b) => b.count > 0).length);
+    $('count-structures').textContent = String(NS);
+    const mods = new Map();
+    SG.forEach((g, gi) => {
+      if (!mods.has(g.mod)) mods.set(g.mod, { id: g.mod, name: g.modName, groups: [] });
+      mods.get(g.mod).groups.push(gi);
+    });
+    const modOrder = [...mods.values()].sort((a, b) =>
+      (a.id === 'minecraft' ? -1 : b.id === 'minecraft' ? 1 : a.name.localeCompare(b.name)));
+    const frag = document.createDocumentFragment();
+    for (const m of modOrder) {
+      m.groups.sort((a, b) => SG[a].name.localeCompare(SG[b].name));
+      const modKinds = m.groups.flatMap((g) => groupKinds[g]);
+      const li = document.createElement('li');
+      const ul = document.createElement('ul');
+      const modRow = stRow('mod', modKinds, m.name, modKinds.reduce((n, k) => n + kindCount[k], 0), null);
+      addCaret(modRow.row, ul, 'Show or hide the structures of ' + m.name);
+      li.append(modRow.row, ul);
+      const modEntry = { li, ul, kinds: modKinds, box: modRow.box, key: (m.name + ' ' + m.id).toLowerCase(), groups: [] };
+      tree.mods.push(modEntry);
+      for (const g of m.groups) {
+        const ks = groupKinds[g].slice().sort((a, b) => SK[a].name.localeCompare(SK[b].name));
+        const multi = ks.length > 1;
+        const gli = document.createElement('li');
+        const groupRow = stRow('group' + (multi ? ' has-kinds' : ''), ks, SG[g].name, groupCount[g], ks[0]);
+        gli.append(groupRow.row);
+        const groupEntry = { li: gli, kinds: ks, box: groupRow.box, mod: modEntry, sub: null, rows: [],
+          key: (SG[g].name + ' ' + SG[g].id).toLowerCase() };
+        if (multi) {
+          const kul = document.createElement('ul');
+          kul.hidden = true;
+          collapsed.add(kul);
+          addCaret(groupRow.row, kul, 'Show or hide the variants of ' + SG[g].name);
+          for (const k of ks) {
+            const kli = document.createElement('li');
+            const kindRow = stRow('kind', [k], SK[k].name, kindCount[k], k);
+            kli.append(kindRow.row);
+            kul.append(kli);
+            const kindEntry = { li: kli, kinds: [k], box: kindRow.box, group: groupEntry,
+              key: (SK[k].name + ' ' + SK[k].id).toLowerCase() };
+            tree.kinds.push(kindEntry);
+            groupEntry.rows.push(kindEntry);
+          }
+          gli.append(kul);
+          groupEntry.sub = kul;
+        }
+        ul.append(gli);
+        tree.groups.push(groupEntry);
+        modEntry.groups.push(groupEntry);
+      }
+      frag.append(li);
+    }
+    const treeEl = $('st-tree');
+    treeEl.append(frag);
+
+    treeEl.addEventListener('change', (e) => {
+      const row = e.target.closest('.st-row');
+      if (row && e.target.type === 'checkbox') setKinds(row.kinds, e.target.checked);
+    });
+    treeEl.addEventListener('click', (e) => {
+      const row = e.target.closest('.st-row');
+      if (!row) return;
+      if (e.target.closest('.loc')) {
+        locateStructure(row.kinds);
+      } else if (!e.target.closest('input, .caret')) {
+        // Clicking the name works like clicking its checkbox.
+        setKinds(row.kinds, !row.kinds.every((k) => kindOn[k]));
+      }
+    });
+    $('st-all').addEventListener('click', () => setKinds(SK.map((k, i) => i), true));
+    $('st-none').addEventListener('click', () => setKinds(SK.map((k, i) => i), false));
+
+    const notes = [];
+    if (!NS) notes.push('No structures in this map.');
+    if (hiddenAtStart.length) notes.push(`${hiddenAtStart.join(', ')} start hidden because there are so many of them.`);
+    if (ST.skipped.length) notes.push(`Too common to search in a map this large: ${ST.skipped.join(', ')}. Make a smaller map to include them.`);
+    if (ST.failed.length) notes.push(`Could not be checked: ${ST.failed.join(', ')} (details in the game log).`);
+    $('st-foot').textContent = notes.join(' ');
+    refreshChecks();
+  }
+
+  function setKinds(kinds, on) {
+    for (const k of kinds) kindOn[k] = on ? 1 : 0;
+    if (hoverStructure >= 0 && !kindOn[sKind[hoverStructure]]) hoverStructure = -1;
+    refreshChecks();
+    updateReadout();
+    requestDraw();
+  }
+
+  function refreshChecks() {
+    for (const list of [tree.mods, tree.groups, tree.kinds]) {
+      for (const r of list) {
+        let on = 0;
+        for (const k of r.kinds) on += kindOn[k];
+        r.box.checked = on > 0 && on === r.kinds.length;
+        r.box.indeterminate = on > 0 && on < r.kinds.length;
+      }
+    }
+    let shown = 0;
+    for (let i = 0; i < NS; i++) shown += kindOn[sKind[i]];
+    $('st-shown').textContent = `${shown} of ${NS} shown`;
+  }
+
+  function filterStructures(q) {
+    for (const m of tree.mods) {
+      const modHit = q === '' || m.key.includes(q);
+      let anyGroup = false;
+      for (const g of m.groups) {
+        const groupHit = modHit || g.key.includes(q);
+        let anyKind = false;
+        for (const k of g.rows) {
+          k.li.hidden = !(groupHit || k.key.includes(q));
+          anyKind = anyKind || (!groupHit && !k.li.hidden);
+        }
+        g.li.hidden = !(groupHit || anyKind);
+        if (g.sub) {
+          // Open a type's variant list while a search matches one of its variants.
+          g.sub.hidden = q !== '' && anyKind ? false : collapsed.has(g.sub);
+          g.sub.caret.setAttribute('aria-expanded', String(!g.sub.hidden));
+        }
+        anyGroup = anyGroup || !g.li.hidden;
+      }
+      m.li.hidden = !anyGroup;
+    }
+  }
+
+  /** Centers the view on the nearest structure of the given kinds, showing them if they were hidden. */
+  function locateStructure(kinds) {
+    const c = visibleCenter();
+    const want = new Uint8Array(SK.length);
+    kinds.forEach((k) => { want[k] = 1; });
+    let best = -1, bestD = Infinity;
+    for (let i = 0; i < NS; i++) {
+      if (!want[sKind[i]]) continue;
+      const dx = sX[i] - c.x, dz = sZ[i] - c.z, d = dx * dx + dz * dz;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    if (best < 0) return;
+    if (!kindOn[sKind[best]]) setKinds([sKind[best]], true);
+    if (!opts.structures) toggle('structures');
+    const x = sX[best] + 0.5, z = sZ[best] + 0.5;
+    view.scale = clampScale(Math.max(view.scale, 1));
+    centerOn(x, z);
+    pulse = { x, z, t: performance.now() };
+    toast(`${SK[sKind[best]].name} at ${sX[best]}, ${sZ[best]}`);
+    viewChanged();
+  }
+
+  /** Index of the visible structure marker under a screen point (CSS px), or -1. */
+  function pickStructure(px, py, extra = 3) {
+    if (!NS || !opts.structures) return -1;
+    let best = -1, bestD = (markerRadius + extra) ** 2;
+    for (let i = 0; i < NS; i++) {
+      if (!kindOn[sKind[i]]) continue;
+      const dx = (sX[i] + 0.5 - view.cx) * view.scale + cssW / 2 - px;
+      const dz = (sZ[i] + 0.5 - view.cz) * view.scale + cssH / 2 - py;
+      const d = dx * dx + dz * dz;
+      if (d <= bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  // ---------- tabs and search ----------
+  const queries = { biomes: '', structures: '' };
+  function setTab(name) {
+    if (name === activeTab) return;
+    queries[activeTab] = $('search').value;
+    activeTab = name;
+    for (const t of ['biomes', 'structures']) {
+      const on = t === name;
+      $('tab-' + t).setAttribute('aria-selected', String(on));
+      $('tab-' + t).tabIndex = on ? 0 : -1;
+      $('pane-' + t).hidden = !on;
+    }
+    $('search').value = queries[name];
+    $('search').placeholder = name === 'biomes' ? 'Filter biomes' : 'Filter structures or mods';
+  }
+
+  function setupLists() {
+    $('tab-biomes').addEventListener('click', () => setTab('biomes'));
+    $('tab-structures').addEventListener('click', () => setTab('structures'));
+    $('tabs').addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      setTab(activeTab === 'biomes' ? 'structures' : 'biomes');
+      $('tab-' + activeTab).focus();
+      e.preventDefault();
+    });
+    $('search').addEventListener('input', () => {
+      const q = $('search').value.trim().toLowerCase();
+      if (activeTab === 'biomes') filterBiomes(q); else filterStructures(q);
+    });
+  }
+
+  // ---------- image ----------
+  function computeShade() {
+    shade = new Uint8ClampedArray(N);
+    // Light from the north-west, 45 degrees up. Normal of the surface: (-dx, 1, -dz).
+    const lx = -0.5025, ly = 0.7035, lz = -0.5025;
+    const k = 1.5 / (2 * STEP); // vertical exaggeration / distance between the two neighbours
+    for (let j = 0; j < H; j++) {
+      const o = j * W;
+      for (let i = 0; i < W; i++) {
+        const p = o + i;
+        const dx = (heights[i < W - 1 ? p + 1 : p] - heights[i > 0 ? p - 1 : p]) * k;
+        const dz = (heights[j < H - 1 ? p + W : p] - heights[j > 0 ? p - W : p]) * k;
+        const lit = (-dx * lx + ly - dz * lz) / Math.sqrt(dx * dx + 1 + dz * dz);
+        let s = 0.55 + 0.65 * lit; // flat ground comes out at about 1.0
+        if (water[grid[p]]) s = 1 + (s - 1) * 0.3;
+        shade[p] = s * 128;
+      }
+    }
+  }
+
+  function renderBase() {
+    const img = octx.createImageData(W, H);
+    const px = img.data;
+    const relief = opts.relief && shade !== null;
+    const dim = selected.size > 0;
+    const keep = new Uint8Array(NB);
+    selected.forEach((i) => { keep[i] = 1; });
+    for (let p = 0, q = 0; p < N; p++, q += 4) {
+      const b = grid[p], c = b * 3;
+      let r = pal[c], g = pal[c + 1], bl = pal[c + 2];
+      if (relief) {
+        const s = shade[p] / 128;
+        r *= s; g *= s; bl *= s;
+      }
+      if (dim && !keep[b]) {
+        const l = 0.3 * r + 0.59 * g + 0.11 * bl;
+        r = g = bl = 16 + l * 0.2;
+      }
+      px[q] = r; px[q + 1] = g; px[q + 2] = bl; px[q + 3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    requestDraw();
+  }
+
+  // ---------- drawing ----------
+  function requestDraw() {
+    if (!frame) frame = requestAnimationFrame(() => { frame = 0; draw(); });
+  }
+
+  function draw() {
+    const cw = canvas.width, ch = canvas.height;
+    const s = view.scale * dpr;                 // device px per block
+    const ax = cw / 2 - view.cx * s;            // device x of block x = 0
+    const az = ch / 2 - view.cz * s;
+    const cell = STEP * s;
+    const mx = ax + OX * s, mz = az + OZ * s;   // device position of the map's corner
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0b0d11';
+    ctx.fillRect(0, 0, cw, ch);
+    if (!grid) return;
+
+    const i0 = clamp(Math.floor(-mx / cell), 0, W), j0 = clamp(Math.floor(-mz / cell), 0, H);
+    const i1 = clamp(Math.ceil((cw - mx) / cell), 0, W), j1 = clamp(Math.ceil((ch - mz) / cell), 0, H);
+    if (i1 > i0 && j1 > j0) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, i0, j0, i1 - i0, j1 - j0, mx + i0 * cell, mz + j0 * cell, (i1 - i0) * cell, (j1 - j0) * cell);
+    }
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    ctx.strokeRect(Math.round(mx) - 0.5, Math.round(mz) - 0.5, Math.round(W * cell) + 1, Math.round(H * cell) + 1);
+
+    if (opts.grid) drawGrid(s, ax, az, mx, mz, W * cell, H * cell);
+    drawStructures(s, ax, az);
+    if (opts.markers) drawMarkers(s, ax, az);
+
+    if (pointer) {
+      const p = sampleIndex(toBlockX(pointer.x), toBlockZ(pointer.y));
+      if (p >= 0 && cell >= 8) {
+        const x = mx + (p % W) * cell, z = mz + Math.floor(p / W) * cell;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = Math.max(1, dpr);
+        ctx.strokeRect(Math.round(x) + 0.5, Math.round(z) + 0.5, Math.round(cell) - 1, Math.round(cell) - 1);
+      }
+    }
+
+    if (pulse) {
+      const t = (performance.now() - pulse.t) / 1400;
+      if (t >= 1) {
+        pulse = null;
+      } else {
+        const x = ax + pulse.x * s, z = az + pulse.z * s;
+        ctx.beginPath();
+        ctx.arc(x, z, (8 + 40 * (1 - t)) * dpr, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${1 - t})`;
+        ctx.lineWidth = 2.5 * dpr;
+        ctx.stroke();
+        requestDraw();
+      }
+    }
+  }
+
+  function drawGrid(s, ax, az, mx, mz, mw, mh) {
+    const x0 = Math.max(0, mx), z0 = Math.max(0, mz);
+    const x1 = Math.min(canvas.width, mx + mw), z1 = Math.min(canvas.height, mz + mh);
+    if (x1 <= x0 || z1 <= z0) return;
+    const lines = (spacing, style) => {
+      ctx.beginPath();
+      const first = (from, origin) => Math.ceil((from - origin) / s / spacing) * spacing;
+      for (let b = first(x0, ax); ax + b * s <= x1; b += spacing) {
+        const x = Math.round(ax + b * s) + 0.5;
+        ctx.moveTo(x, z0);
+        ctx.lineTo(x, z1);
+      }
+      for (let b = first(z0, az); az + b * s <= z1; b += spacing) {
+        const z = Math.round(az + b * s) + 0.5;
+        ctx.moveTo(x0, z);
+        ctx.lineTo(x1, z);
+      }
+      ctx.strokeStyle = style;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    };
+    if (16 * s >= 12) lines(16, 'rgba(0,0,0,0.22)');
+    if (512 * s >= 36) lines(512, 'rgba(255,255,255,0.20)');
+    else if (4096 * s >= 36) lines(4096, 'rgba(255,255,255,0.20)');
+  }
+
+  /** Labeled markers when few are on screen, plain dots when many are (zoomed out, or common types shown). */
+  function drawStructures(s, ax, az) {
+    if (!NS || !opts.structures) return;
+    const cw = canvas.width, ch = canvas.height, pad = 12 * dpr;
+    const shown = [];
+    for (let i = 0; i < NS; i++) {
+      if (!kindOn[sKind[i]]) continue;
+      const x = ax + (sX[i] + 0.5) * s, z = az + (sZ[i] + 0.5) * s;
+      if (x > -pad && z > -pad && x < cw + pad && z < ch + pad) shown.push(i);
+    }
+    // Labels need room: plain dots when the markers would crowd the part of the map on screen.
+    const mw = Math.min(cw, ax + (OX + W * STEP) * s) - Math.max(0, ax + OX * s);
+    const mh = Math.min(ch, az + (OZ + H * STEP) * s) - Math.max(0, az + OZ * s);
+    const room = Math.max(0, mw) * Math.max(0, mh) / (dpr * dpr);
+    const labeled = shown.length <= Math.min(400, room / 1600);
+    markerRadius = labeled ? 8 : 3.5;
+    const r = markerRadius * dpr;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = (labeled ? 1.5 : 1) * dpr;
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    let font = '';
+    for (const i of shown) {
+      const k = sKind[i], x = ax + (sX[i] + 0.5) * s, z = az + (sZ[i] + 0.5) * s;
+      ctx.beginPath();
+      ctx.arc(x, z, r, 0, Math.PI * 2);
+      ctx.fillStyle = SK[k].color;
+      ctx.fill();
+      ctx.stroke();
+      if (labeled) {
+        const label = SK[k].label;
+        const f = `700 ${(label.length > 1 ? 8 : 10) * dpr}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+        if (f !== font) { ctx.font = f; font = f; }
+        ctx.fillStyle = kindInk[k];
+        ctx.fillText(label, x, z + 0.5 * dpr);
+      }
+    }
+    if (hoverStructure >= 0) {
+      const x = ax + (sX[hoverStructure] + 0.5) * s, z = az + (sZ[hoverStructure] + 0.5) * s;
+      ctx.beginPath();
+      ctx.arc(x, z, r + 3 * dpr, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2 * dpr;
+      ctx.stroke();
+    }
+    ctx.textAlign = 'start';
+  }
+
+  function drawMarkers(s, ax, az) {
+    const marks = [];
+    // One marker when the map is centered on spawn (as when run from the server console).
+    const atSpawn = D.spawn && Math.abs(D.spawn.x - D.centerX) < STEP && Math.abs(D.spawn.z - D.centerZ) < STEP;
+    if (!atSpawn) marks.push({ x: D.centerX, z: D.centerZ, label: 'Map center', spawn: false });
+    if (D.spawn) marks.push({ x: D.spawn.x, z: D.spawn.z, label: atSpawn ? 'World spawn (map center)' : 'World spawn', spawn: true });
+    ctx.font = `600 ${11 * dpr}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    for (const m of marks) {
+      const x = ax + (m.x + 0.5) * s, z = az + (m.z + 0.5) * s, r = 6 * dpr;
+      if (x < -100 || z < -100 || x > canvas.width + 100 || z > canvas.height + 100) continue;
+      ctx.beginPath();
+      if (m.spawn) {
+        ctx.moveTo(x, z - r * 1.3);
+        ctx.lineTo(x + r * 1.3, z);
+        ctx.lineTo(x, z + r * 1.3);
+        ctx.lineTo(x - r * 1.3, z);
+        ctx.closePath();
+      } else {
+        ctx.arc(x, z, r, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = m.spawn ? '#ffd24a' : '#ffffff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2 * dpr;
+      ctx.fill();
+      ctx.stroke();
+      const tx = x + r * 1.8, tz = m.spawn && !atSpawn ? z + 14 * dpr : z; // keep two nearby labels apart
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.strokeText(m.label, tx, tz);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(m.label, tx, tz);
+    }
+    ctx.lineJoin = 'miter';
+  }
+
+  // ---------- readout ----------
+  function updateReadout() {
+    const coordsEl = $('ro-coords'), biomeEl = $('ro-biome'), idEl = $('ro-id'), stEl = $('ro-structure');
+    biomeEl.replaceChildren();
+    idEl.textContent = '';
+    stEl.replaceChildren();
+    if (hoverStructure >= 0) {
+      const i = hoverStructure, k = sKind[i], g = SG[SK[k].group];
+      const what = document.createElement('span');
+      what.className = 'what';
+      what.textContent = SK[k].name;
+      const info = document.createElement('span');
+      info.className = 'muted small';
+      const type = groupKinds[SK[k].group].length > 1 ? g.name + ' · ' : '';
+      info.textContent = `${type}${g.modName} · X ${sX[i]} Y ${sY[i]} Z ${sZ[i]}`;
+      const txt = document.createElement('span');
+      txt.className = 'txt';
+      txt.append(what, info);
+      stEl.append(markerChip(k), txt);
+    }
+    if (!pointer || !grid) {
+      coordsEl.className = '';
+      coordsEl.textContent = !grid ? 'Loading map…' : TOUCH_ONLY ? 'Tap the map to see biomes' : 'Point at the map to see biomes';
+      return;
+    }
+    const bx = Math.floor(toBlockX(pointer.x)), bz = Math.floor(toBlockZ(pointer.y));
+    const p = sampleIndex(bx, bz);
+    let coords = `X ${bx}  Z ${bz}  ·  chunk ${bx >> 4}, ${bz >> 4}`;
+    if (heights && p >= 0) coords += `  ·  ${EXACT ? 'Y' : 'Y ≈'} ${heights[p]}`;
+    coordsEl.className = 'coords';
+    coordsEl.textContent = coords;
+    if (p < 0) {
+      biomeEl.textContent = 'Outside the mapped area';
+      return;
+    }
+    const b = B[grid[p]];
+    const sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = b.color;
+    const name = document.createElement('span');
+    name.textContent = b.name;
+    biomeEl.append(sw, name);
+    idEl.textContent = b.id;
+  }
+
+  // ---------- view ----------
+  /** The part of the window not covered by panels, in CSS px. */
+  function freeArea() {
+    let x0 = 0, y0 = 0, x1 = cssW, y1 = cssH;
+    const side = $('side').getBoundingClientRect();
+    if (side.left > cssW / 2) x1 = side.left; else y1 = Math.min(y1, side.top);
+    for (const id of ['readout', 'controls']) {
+      const r = $(id).getBoundingClientRect();
+      if (r.height === 0) continue;
+      if (r.bottom < cssH / 2) y0 = Math.max(y0, r.bottom); else y1 = Math.min(y1, r.top);
+    }
+    const pad = 16;
+    return { x0: x0 + pad, y0: y0 + pad, x1: Math.max(x0 + pad + 50, x1 - pad), y1: Math.max(y0 + pad + 50, y1 - pad) };
+  }
+
+  function centerOn(x, z) {
+    const a = freeArea();
+    view.cx = x - ((a.x0 + a.x1) / 2 - cssW / 2) / view.scale;
+    view.cz = z - ((a.y0 + a.y1) / 2 - cssH / 2) / view.scale;
+  }
+
+  function fitScale() {
+    const a = freeArea();
+    return Math.min((a.x1 - a.x0) / (W * STEP), (a.y1 - a.y0) / (H * STEP));
+  }
+
+  function fit() {
+    view.scale = clampScale(fitScale());
+    centerOn(OX + W * STEP / 2, OZ + H * STEP / 2);
+  }
+
+  let hashTimer = 0;
+  function viewChanged() {
+    if (pointer) hoverStructure = pickStructure(pointer.x, pointer.y, TOUCH_ONLY ? 10 : 3);
+    requestDraw();
+    updateReadout();
+    clearTimeout(hashTimer);
+    hashTimer = setTimeout(() => {
+      const h = `#x=${Math.round(view.cx)}&z=${Math.round(view.cz)}&zoom=${+view.scale.toPrecision(4)}`;
+      try { history.replaceState(null, '', h); } catch (e) { /* not allowed for some file URLs */ }
+    }, 250);
+  }
+
+  function readHash() {
+    const q = new URLSearchParams(location.hash.slice(1));
+    const x = parseFloat(q.get('x')), z = parseFloat(q.get('z')), s = parseFloat(q.get('zoom'));
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
+    view.cx = x;
+    view.cz = z;
+    if (Number.isFinite(s) && s > 0) view.scale = clampScale(s);
+    return true;
+  }
+
+  function zoomAt(px, py, factor) {
+    const bx = toBlockX(px), bz = toBlockZ(py);
+    view.scale = clampScale(view.scale * factor);
+    view.cx = bx - (px - cssW / 2) / view.scale;
+    view.cz = bz - (py - cssH / 2) / view.scale;
+    viewChanged();
+  }
+
+  function zoomCenter(factor) {
+    const a = freeArea();
+    zoomAt((a.x0 + a.x1) / 2, (a.y0 + a.y1) / 2, factor);
+  }
+
+  function resize() {
+    // Phones put the readout under the toolbar, which wraps onto two rows on narrow screens.
+    document.documentElement.style.setProperty('--controls-h', $('controls').offsetHeight + 'px');
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    cssW = Math.max(1, canvas.clientWidth);
+    cssH = Math.max(1, canvas.clientHeight);
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    minScale = Math.min(fitScale() / 4, 1 / STEP);
+    view.scale = clampScale(view.scale);
+    requestDraw();
+  }
+
+  function toggle(name) {
+    if (name === 'relief' && !shade) return;
+    if (name === 'structures' && !ST) return;
+    opts[name] = !opts[name];
+    $('t-' + name).setAttribute('aria-pressed', String(opts[name]));
+    if (name === 'structures' && !opts.structures) {
+      hoverStructure = -1;
+      updateReadout();
+    }
+    if (name === 'relief') renderBase(); else requestDraw();
+  }
+
+  // ---------- input ----------
+  function setupInput() {
+    const pointers = new Map();
+    let drag = null, pinch = null, press = 0;
+
+    // On a structure marker the command goes to the structure itself, elsewhere to the clicked spot.
+    const copyTeleport = (px, py) => {
+      if (hoverStructure >= 0) {
+        const i = hoverStructure;
+        copy(`/tp @s ${sX[i]} ~ ${sZ[i]}`, `/tp to ${SK[sKind[i]].name} (${sX[i]}, ${sZ[i]})`);
+      } else {
+        copy(`/tp @s ${Math.floor(toBlockX(px))} ~ ${Math.floor(toBlockZ(py))}`);
+      }
+    };
+    const startPinch = () => {
+      const [a, b] = [...pointers.values()];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, scale: view.scale, bx: toBlockX(mx), bz: toBlockZ(my) };
+    };
+
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+      clearTimeout(press);
+      if (pointers.size === 1) {
+        drag = { x: e.offsetX, y: e.offsetY, cx: view.cx, cz: view.cz, moved: false, touch: e.pointerType !== 'mouse' };
+        if (drag.touch) {
+          pointer = { x: e.offsetX, y: e.offsetY };
+          hoverStructure = pickStructure(e.offsetX, e.offsetY, 10);
+          updateReadout();
+          requestDraw();
+          // Long-press copies the teleport command on touch screens, where a tap only shows the readout.
+          press = setTimeout(() => { if (drag && !drag.moved) { drag.moved = true; copyTeleport(drag.x, drag.y); } }, 550);
+        }
+      } else if (pointers.size === 2) {
+        drag = null;
+        pinch = startPinch();
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (pointers.has(e.pointerId)) {
+        pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+        if (pinch && pointers.size === 2) {
+          const [a, b] = [...pointers.values()];
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          view.scale = clampScale(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.d);
+          view.cx = pinch.bx - (mx - cssW / 2) / view.scale;
+          view.cz = pinch.bz - (my - cssH / 2) / view.scale;
+          viewChanged();
+          return;
+        }
+        if (drag) {
+          const dx = e.offsetX - drag.x, dy = e.offsetY - drag.y;
+          if (!drag.moved && Math.hypot(dx, dy) > 4) {
+            drag.moved = true;
+            clearTimeout(press);
+            canvas.classList.add('dragging');
+          }
+          if (drag.moved) {
+            view.cx = drag.cx - dx / view.scale;
+            view.cz = drag.cz - dy / view.scale;
+            viewChanged();
+            return;
+          }
+        }
+      }
+      if (e.pointerType === 'mouse') {
+        pointer = { x: e.offsetX, y: e.offsetY };
+        hoverStructure = pickStructure(e.offsetX, e.offsetY);
+        canvas.style.cursor = hoverStructure >= 0 ? 'pointer' : '';
+        updateReadout();
+        requestDraw();
+      }
+    });
+
+    const release = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.delete(e.pointerId);
+      clearTimeout(press);
+      if (e.type === 'pointerup' && drag && !drag.moved && !drag.touch && pointers.size === 0 && e.button === 0) {
+        copyTeleport(e.offsetX, e.offsetY);
+      }
+      if (pointers.size === 0) {
+        drag = null;
+        pinch = null;
+        canvas.classList.remove('dragging');
+      } else if (pointers.size === 1) {
+        pinch = null;
+        const [p] = pointers.values();
+        drag = { x: p.x, y: p.y, cx: view.cx, cz: view.cz, moved: true, touch: true };
+      }
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+    canvas.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse' && pointers.size === 0) {
+        pointer = null;
+        hoverStructure = -1;
+        updateReadout();
+        requestDraw();
+      }
+    });
+    canvas.addEventListener('contextmenu', (e) => { if (drag && drag.touch) e.preventDefault(); });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? cssH : 1;
+      zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015)));
+    }, { passive: false });
+
+    $('zoom-in').addEventListener('click', () => zoomCenter(1.6));
+    $('zoom-out').addEventListener('click', () => zoomCenter(1 / 1.6));
+    $('zoom-fit').addEventListener('click', () => { fit(); viewChanged(); });
+    for (const name of ['relief', 'grid', 'markers', 'structures']) $('t-' + name).addEventListener('click', () => toggle(name));
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target instanceof HTMLInputElement) {
+        if (e.key === 'Escape') e.target.blur();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const pan = 0.2 * Math.min(cssW, cssH) / view.scale;
+      switch (e.key) {
+        case '+': case '=': zoomCenter(1.6); break;
+        case '-': case '_': zoomCenter(1 / 1.6); break;
+        case '0': fit(); viewChanged(); break;
+        case 'ArrowLeft': view.cx -= pan; viewChanged(); break;
+        case 'ArrowRight': view.cx += pan; viewChanged(); break;
+        case 'ArrowUp': view.cz -= pan; viewChanged(); break;
+        case 'ArrowDown': view.cz += pan; viewChanged(); break;
+        case 'r': case 'R': toggle('relief'); break;
+        case 'g': case 'G': toggle('grid'); break;
+        case 'm': case 'M': toggle('markers'); break;
+        case 's': case 'S': toggle('structures'); break;
+        case '/': $('search').focus(); break;
+        case 'Escape': clearSelection(); break;
+        default: return;
+      }
+      e.preventDefault();
+    });
+
+    window.addEventListener('resize', () => { resize(); updateReadout(); });
+    // Our own replaceState() does not fire this; links like #x=100&z=-200&zoom=2 and back/forward do.
+    window.addEventListener('hashchange', () => { if (readHash()) viewChanged(); });
+  }
+
+  // ---------- start ----------
+  async function init() {
+    if (window.matchMedia('(max-width: 760px)').matches) toggleSide();
+    resize();
+    try {
+      grid = new Uint16Array(await inflate(D.grid));
+      if (grid.length !== N) throw new Error('The map data is damaged (wrong size).');
+      if (D.heightData) {
+        heights = new Int16Array(await inflate(D.heightData));
+        if (heights.length !== N) throw new Error('The height data is damaged (wrong size).');
+        for (let j = 0; j < H; j++) {         // undo the per-row differences
+          let prev = 0;
+          for (let o = j * W, i = 0; i < W; i++) {
+            prev += heights[o + i];
+            heights[o + i] = prev;
+          }
+        }
+        computeShade();
+      }
+    } catch (e) {
+      grid = null;
+      fail(e.message || String(e));
+      return;
+    }
+    fillInfo();
+    buildLegend();
+    buildStructures();
+    setupLists();
+    setupInput();
+    resize();
+    if (!readHash()) fit();
+    renderBase();
+    updateReadout();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

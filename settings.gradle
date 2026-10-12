@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'biomemap'
+
+// common: the mod itself, written against plain Minecraft. neoforge and fabric each build a jar from it
+// plus their small entry point.
+include 'common', 'neoforge', 'fabric'
