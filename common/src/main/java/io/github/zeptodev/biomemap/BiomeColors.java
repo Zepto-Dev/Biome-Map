@@ -11,7 +11,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.biome.Biome;
@@ -94,7 +94,7 @@ final class BiomeColors {
     private BiomeColors() {}
 
     static String id(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> key.location().toString()).orElse("unknown:unregistered");
+        return biome.unwrapKey().map(key -> key.identifier().toString()).orElse("unknown:unregistered");
     }
 
     /** The color a biome gets when the config file does not override it. */
@@ -202,7 +202,7 @@ final class BiomeColors {
         Path file = BiomeMap.platform().configDir().resolve(CONFIG_FILE);
         try {
             if (Files.notExists(file)) {
-                writeTemplate(file, registries.registryOrThrow(Registries.BIOME));
+                writeTemplate(file, registries.lookupOrThrow(Registries.BIOME));
             }
             return ColorMath.parseOverrides(Files.readAllLines(file, StandardCharsets.UTF_8),
                     line -> BiomeMap.LOGGER.warn("Ignoring line in {}: {}", file.getFileName(), line));
@@ -220,9 +220,9 @@ final class BiomeColors {
                 "# Changes apply to the next /biomemap (no restart needed).",
                 "# Delete this file to regenerate the list, for example after adding mods.",
                 ""));
-        registry.holders()
+        registry.listElements()
                 .map(holder -> {
-                    String id = holder.key().location().toString();
+                    String id = holder.key().identifier().toString();
                     return "# " + id + " = " + ColorMath.hex(auto(holder, id));
                 })
                 .sorted()
@@ -272,7 +272,7 @@ final class BiomeColors {
             static final TagKey<Biome> IS_WINDSWEPT = tag("is_windswept");
 
             private static TagKey<Biome> tag(String path) {
-                return TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("c", path));
+                return TagKey.create(Registries.BIOME, Identifier.fromNamespaceAndPath("c", path));
             }
         }
     }

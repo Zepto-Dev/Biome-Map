@@ -1,7 +1,9 @@
 # Biome Map
 
 One command maps every biome and structure around you, modded ones included, into an interactive map
-you open in your browser. For Minecraft 1.21.1 on NeoForge and Fabric.
+you open in your browser. For Minecraft 1.21.11 on NeoForge and Fabric. Versions for Minecraft 1.20.1
+(Forge, NeoForge and Fabric) and 1.21.1 (NeoForge and Fabric) are on this repository's `1.20.1` and `main`
+branches.
 
 The mod adds a `/biomemap` command that asks your world's real generator which biome goes where and
 which structures generate, then saves:
@@ -22,10 +24,11 @@ Copy the jar for your mod loader into your instance's `mods` folder:
 
 | Loader | Jar | Also needs |
 | --- | --- | --- |
-| NeoForge 21.1.251 or later | `biomemap-neoforge-1.1.0.jar` | nothing else |
-| Fabric Loader 0.16 or later | `biomemap-fabric-1.1.0.jar` | [Fabric API](https://modrinth.com/mod/fabric-api) |
+| NeoForge 21.11.48 or later | `biomemap-neoforge-1.21.11-1.1.1.jar` | nothing else |
+| Fabric Loader 0.17.3 or later | `biomemap-fabric-1.21.11-1.1.1.jar` | [Fabric API](https://modrinth.com/mod/fabric-api) |
 
-Both versions do exactly the same thing and make the same maps.
+Both versions do the same thing. Their maps can differ in a few cells, because NeoForge for 1.21.11 makes
+very slightly different worlds than vanilla Minecraft (see [How accurate is it?](#how-accurate-is-it)).
 
 ## Build the jars
 
@@ -36,7 +39,8 @@ gradlew build          (Windows: gradlew.bat build)
 ```
 
 The first build downloads Minecraft, NeoForge and Fabric and takes a few minutes. The jars end up in
-`neoforge/build/libs/biomemap-neoforge-1.1.0.jar` and `fabric/build/libs/biomemap-fabric-1.1.0.jar`.
+`neoforge/build/libs/biomemap-neoforge-1.21.11-1.1.1.jar` and
+`fabric/build/libs/biomemap-fabric-1.21.11-1.1.1.jar`.
 
 ## Use it
 
@@ -97,19 +101,21 @@ browser from 2023 or later.
 
 - **Biome placement is exact**: it's the same function the game calls when it generates chunks.
   In tests against chunks the game really generated (vanilla, and with TerraBlender + Biomes O'
-  Plenty), the map matched 4,095 of 4,096 cells. The one difference sat exactly on the border
-  between two biomes' climate ranges, where the game itself can pick either one.
+  Plenty), the map matched 4,095 of 4,096 cells, on NeoForge and on Fabric. The one difference sat
+  exactly on the border between two biomes' climate ranges, where the game itself can pick either one.
 - **Structures are worked out the way world generation does it**: the same candidate chunks for
   each structure type, the same random pick when several structures share a type, and then the
   structure's own placement code with its biome and terrain checks. That's why modded structures
   and modded placement rules work too. In tests against chunks the game really generated, the map
-  found every structure that generated and listed none that didn't:
-  - vanilla: 96 of 96 in the Overworld, 17 of 17 in the Nether;
-  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 162 of 162 in the
-    Overworld and 85 of 85 in the Nether, covering 109 different structures.
-- **NeoForge and Fabric give the same maps.** With the same seed and mods, the two versions made
-  identical maps in tests, both vanilla and with the three mods above. Chunks generated on Fabric
-  matched the map too: 63 of 63 structures in the Overworld, 44 of 44 in the Nether.
+  found every structure that generated and listed none that didn't, on NeoForge and on Fabric:
+  - vanilla: 218 of 218 in the Overworld, 148 of 148 in the Nether, 3 of 3 in the End;
+  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 408 of 408 in the
+    Overworld, 200 of 200 in the Nether and 13 of 13 in the End, covering 113 different structures.
+- **NeoForge and Fabric maps can differ in a few cells.** NeoForge for 1.21.11 computes one of
+  Minecraft's random number functions with less precision than vanilla Minecraft does, so a NeoForge
+  world comes out very slightly different from a vanilla or Fabric world with the same seed. In tests,
+  about one map cell in 40,000 had a different biome, always where two biomes meet, and the structures
+  were the same. Each map matches the world its own loader generates.
 - **A marker shows where a structure starts**, the same point `/locate` gives. Big structures such
   as villages and ancient cities spread out from there.
 - **Very common structure types can be left out of big maps.** The map checks at most 25,000
@@ -174,10 +180,10 @@ restart needed. Delete the file to regenerate the list after adding mods.
   biome map four times faster.
 - Structure time grows with the area and with how many structure types your mods add.
 - Measured on a 4-core test machine, for the default map (4096 × 4096 blocks, 1024 × 1024 pixels),
-  with the same times on NeoForge and Fabric:
-  - vanilla: about 13 seconds, half of it for structures (502 structures);
-  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 30 to 40 seconds, about
-    7 for biomes and the rest for structures (774 structures of 42 types).
+  with about the same times on NeoForge and Fabric:
+  - vanilla: about 11 seconds (502 structures);
+  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 20 to 25 seconds (673
+    structures of 83 types).
   Most gaming PCs have more cores and will be faster.
 - `exact` mode runs the full terrain generator for every pixel, about 150 times slower: on the same
   machine a 256 × 256 pixel map took about a minute. Start with a small radius or a large step.

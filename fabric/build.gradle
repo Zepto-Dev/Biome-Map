@@ -7,7 +7,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "${mod_id}-fabric"
+    archivesName = "${mod_id}-fabric-${minecraft_version}"
 }
 
 repositories {
@@ -48,7 +48,7 @@ loom {
     accessWidenerPath = file('src/main/resources/biomemap.accesswidener')
 }
 
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
+// Mojang ships Java 21 to end users in 1.21.11, so mods should target Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 tasks.withType(JavaCompile).configureEach {

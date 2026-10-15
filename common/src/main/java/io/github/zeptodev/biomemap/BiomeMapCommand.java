@@ -99,13 +99,13 @@ final class BiomeMapCommand {
      * off: it only reads world generation, much like {@code /seed}, which is also allowed there.
      */
     private static boolean canUse(CommandSourceStack source) {
-        if (source.hasPermission(2)) {
+        if (Commands.LEVEL_GAMEMASTERS.check(source.permissions())) {
             return true;
         }
         ServerPlayer player = source.getPlayer();
         return player != null
                 && !source.getServer().isDedicatedServer()
-                && source.getServer().isSingleplayerOwner(player.getGameProfile());
+                && source.getServer().isSingleplayerOwner(player.nameAndId());
     }
 
     private static int start(CommandContext<CommandSourceStack> ctx, Center center, int radius, int step,

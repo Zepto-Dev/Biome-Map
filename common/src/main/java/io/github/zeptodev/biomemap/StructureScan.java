@@ -14,7 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -92,7 +92,7 @@ final class StructureScan {
      * the one that added the set, so a mod that only tweaks a vanilla set doesn't claim it.
      */
     private static Source sourceOf(ResourceManager resources, Holder<StructureSet> set) {
-        ResourceLocation id = set.unwrapKey().map(key -> key.location()).orElse(null);
+        Identifier id = set.unwrapKey().map(key -> key.identifier()).orElse(null);
         if (id == null) {
             return new Source("unknown", "Unknown");
         }
@@ -294,7 +294,7 @@ final class StructureScan {
         if (stub.isEmpty()) {
             return null;
         }
-        ResourceLocation type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());
+        Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());
         if ((type == null || !type.getNamespace().equals("minecraft")) && stub.get().getPiecesBuilder().build().isEmpty()) {
             return null;
         }

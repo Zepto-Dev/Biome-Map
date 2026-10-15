@@ -32,7 +32,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -42,12 +42,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
+import net.minecraft.world.level.biome.TheEndBiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.DensityFunctions;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.storage.LevelData;
 
 /**
  * One biome map export. Sampling runs on background threads and only calls the world generator's pure
@@ -73,6 +75,7 @@ final class MapJob {
     private final ServerPlayer player;
     private final Settings settings;
     private final long seed;
+    /** Null when the world spawn is in another dimension. */
     private final BlockPos spawn;
     private final int originX;
     private final int originZ;
@@ -108,7 +111,9 @@ final class MapJob {
         this.player = source.getPlayer();
         this.settings = settings;
         this.seed = level.getSeed();
-        this.spawn = level.getSharedSpawnPos();
+        // The world spawn can be in any dimension; it's only marked on a map of that dimension.
+        LevelData.RespawnData respawn = level.getRespawnData();
+        this.spawn = respawn.dimension() == level.dimension() ? respawn.pos() : null;
 
         int step = settings.step();
         this.width = Math.ceilDiv(2 * settings.radius(), step);
@@ -124,14 +129,16 @@ final class MapJob {
         this.sampler = randomState.sampler();
         // Surface biomes are what the climate parameters pick at depth 0. Cave biomes (lush caves, dripstone
         // caves, deep dark) only win at larger depths, so a sampler whose depth is fixed at 0 sees exactly the
-        // surface layer without having to work out the terrain height first.
-        this.surfaceSampler = new Climate.Sampler(sampler.temperature(), sampler.humidity(),
-                sampler.continentalness(), sampler.erosion(), DensityFunctions.zero(), sampler.weirdness(),
-                sampler.spawnTarget());
+        // surface layer without having to work out the terrain height first. The End's biome source doesn't
+        // use depth, and mods can attach state to the game's own sampler there (Fabric API seeds its End biome
+        // noise from it), so the End keeps the real one.
+        this.surfaceSampler = biomeSource instanceof TheEndBiomeSource ? sampler
+                : new Climate.Sampler(sampler.temperature(), sampler.humidity(), sampler.continentalness(),
+                        sampler.erosion(), DensityFunctions.zero(), sampler.weirdness(), sampler.spawnTarget());
         this.depth = randomState.router().depth();
         this.seaLevel = generator.getSeaLevel();
-        this.minY = level.getMinBuildHeight();
-        this.maxY = level.getMaxBuildHeight() - 1;
+        this.minY = level.getMinY();
+        this.maxY = level.getMaxY();
 
         this.structureScan = new StructureScan(level, originX, originZ,
                 originX + width * step - 1, originZ + height * step - 1);
@@ -174,7 +181,7 @@ final class MapJob {
             case EXACT -> "surface biomes at the exact terrain height (slower)";
             case FIXED -> "biomes at Y " + settings.fixedY();
         };
-        String where = level.dimension() == Level.OVERWORLD ? "" : " in " + level.dimension().location();
+        String where = level.dimension() == Level.OVERWORLD ? "" : " in " + level.dimension().identifier();
         // Players see progress above the hotbar; the console has no action bar.
         String progress = player != null ? "" : " Progress goes to the log.";
         Component message = Component.literal(String.format(Locale.ROOT,
@@ -201,7 +208,7 @@ final class MapJob {
             Path dir = BiomeMap.platform().gameDir().resolve("biomemaps");
             Files.createDirectories(dir);
             String name = String.format(Locale.ROOT, "biomemap_%d_%s_%s", seed,
-                    level.dimension().location().getPath().replace('/', '_'), LocalDateTime.now().format(FILE_TIME));
+                    level.dimension().identifier().getPath().replace('/', '_'), LocalDateTime.now().format(FILE_TIME));
             Path png = dir.resolve(name + ".png");
             Path html = dir.resolve(name + ".html");
 
@@ -412,7 +419,7 @@ final class MapJob {
     }
 
     private static String keyOf(Holder<?> holder) {
-        return holder.unwrapKey().map(key -> key.location().toString()).orElse("unknown:unregistered");
+        return holder.unwrapKey().map(key -> key.identifier().toString()).orElse("unknown:unregistered");
     }
 
     /**
@@ -453,7 +460,7 @@ final class MapJob {
 
     /** Uses the game's language when it has a name for the biome (always true in singleplayer). */
     private static String displayName(String id) {
-        ResourceLocation location = ResourceLocation.tryParse(id);
+        Identifier location = Identifier.tryParse(id);
         if (location != null) {
             String key = "biome." + location.getNamespace() + "." + location.getPath().replace('/', '.');
             Language language = Language.getInstance();
@@ -503,16 +510,15 @@ final class MapJob {
     }
 
     private MapExport.MapInfo info(long elapsedMs) {
-        boolean overworld = level.dimension() == Level.OVERWORLD;
         String mode = switch (settings.mode()) {
             case SURFACE -> "surface";
             case EXACT -> "exact";
             case FIXED -> "y";
         };
-        return new MapExport.MapInfo(Long.toString(seed), level.dimension().location().toString(), mode,
+        return new MapExport.MapInfo(Long.toString(seed), level.dimension().identifier().toString(), mode,
                 settings.fixedY(), settings.mode() == Mode.EXACT, originX, originZ, settings.step(), width, height,
-                settings.centerX(), settings.centerZ(), overworld ? spawn.getX() : null,
-                overworld ? spawn.getZ() : null, SharedConstants.getCurrentVersion().getName(), modVersion(),
+                settings.centerX(), settings.centerZ(), spawn != null ? spawn.getX() : null,
+                spawn != null ? spawn.getZ() : null, SharedConstants.getCurrentVersion().name(), modVersion(),
                 LocalDateTime.now().format(SHOWN_TIME), elapsedMs);
     }
 
@@ -536,7 +542,7 @@ final class MapJob {
      */
     private void sendDone(long elapsedMs, int biomeCount, int structureCount, Path html, Path png) {
         Component copyLinks = doneMessage(elapsedMs, biomeCount, structureCount, html, png, false);
-        if (player == null || server.isDedicatedServer() || !server.isSingleplayerOwner(player.getGameProfile())) {
+        if (player == null || server.isDedicatedServer() || !server.isSingleplayerOwner(player.nameAndId())) {
             reply(copyLinks, false);
             return;
         }
@@ -566,14 +572,14 @@ final class MapJob {
     private static MutableComponent fileLink(String label, Path file, String tooltip, boolean canOpen) {
         String path = file.toAbsolutePath().toString();
         ClickEvent click = canOpen
-                ? new ClickEvent(ClickEvent.Action.OPEN_FILE, path)
-                : new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, path);
+                ? new ClickEvent.OpenFile(path)
+                : new ClickEvent.CopyToClipboard(path);
         Component hover = Component.literal(canOpen ? tooltip : "Click to copy the path: " + path);
         return Component.literal(label).withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
                 .withClickEvent(click)
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover)));
+                .withHoverEvent(new HoverEvent.ShowText(hover)));
     }
 
     private void actionBar(String text) {
