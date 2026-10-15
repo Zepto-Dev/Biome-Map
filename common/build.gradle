@@ -1,12 +1,12 @@
 plugins {
     id 'java-library'
-    id 'net.neoforged.moddev'
+    id 'net.neoforged.moddev.legacyforge'
 }
 
 // The mod's code, shared by both loaders. It compiles against plain Minecraft, so it can't use NeoForge or
 // Fabric classes by accident: those go through Platform.
-neoForge {
-    neoFormVersion = neo_form_version
+legacyForge {
+    mcpVersion = minecraft_version
 
     parchment {
         mappingsVersion = project.parchment_mappings_version
@@ -14,13 +14,14 @@ neoForge {
     }
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Minecraft 1.20.1 runs on Java 17.
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-// neoforge/ and fabric/ compile these sources and resources into their own jars.
+// forge/ and fabric/ compile these sources and resources into their own jars.
 configurations {
     commonJava {
         canBeResolved = false

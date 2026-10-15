@@ -119,7 +119,7 @@ final class BiomeMapCommand {
                     + "4x4x4 block cells), for example 4, 8, 16 or 32."));
             return 0;
         }
-        int size = Math.ceilDiv(2 * radius, step);
+        int size = (2 * radius + step - 1) / step; // rounded up
         if (size > MAX_SIZE) {
             source.sendFailure(Component.literal("That map would be " + size + "x" + size + " pixels, but the limit is "
                     + MAX_SIZE + ". Use a step of at least " + smallestStep(radius, MAX_SIZE) + "."));
@@ -137,7 +137,7 @@ final class BiomeMapCommand {
     /** Smallest multiple of 4 that keeps the image at most {@code maxSize} pixels wide. */
     private static int smallestStep(int radius, int maxSize) {
         int step = 4;
-        while (Math.ceilDiv(2 * radius, step) > maxSize) {
+        while ((2 * radius + step - 1) / step > maxSize) {
             step += 4;
         }
         return step;

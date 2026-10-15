@@ -9,20 +9,22 @@ version="${mod_version}"
 displayName="${mod_name}"
 authors="${mod_authors}"
 displayURL="${mod_source_url}"
+# Players don't need the mod to join a server that has it, so the server list never marks it as missing.
+displayTest="IGNORE_ALL_VERSION"
 description='''
 Adds /biomemap, which exports a Chunkbase-style biome and structure map of the current world's seed as a PNG and an interactive HTML viewer. It asks your modpack's real world generator, so modded biomes and structures show up exactly where they will generate.
 '''
 
 [[dependencies.${mod_id}]]
-    modId="neoforge"
-    type="required"
-    versionRange="[${neo_version},)"
+    modId="forge"
+    mandatory=true
+    versionRange="${forge_version_range}"
     ordering="NONE"
     side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="minecraft"
-    type="required"
+    mandatory=true
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"

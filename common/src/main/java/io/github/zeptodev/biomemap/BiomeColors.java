@@ -106,89 +106,89 @@ final class BiomeColors {
     /** Oceans and rivers get softer terrain shading in the viewer. */
     static boolean isWater(Holder<Biome> biome) {
         return biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_RIVER)
-                || biome.is(Tags.Biomes.IS_OCEAN) || biome.is(Tags.Biomes.IS_RIVER);
+                || is(biome, Tags.Biomes.IS_OCEAN) || is(biome, Tags.Biomes.IS_RIVER);
     }
 
     private static int category(Holder<Biome> b) {
         Platform.Climate climate = BiomeMap.platform().climate(b.value());
         float temperature = climate.temperature();
-        boolean cold = temperature < 0.15F || b.is(Tags.Biomes.IS_SNOWY) || b.is(Tags.Biomes.IS_ICY);
+        boolean cold = temperature < 0.15F || is(b, Tags.Biomes.IS_SNOWY) || is(b, Tags.Biomes.IS_ICY);
         boolean warm = temperature > 0.8F;
 
-        if (b.is(BiomeTags.IS_NETHER) || b.is(Tags.Biomes.IS_NETHER)) {
-            return b.is(Tags.Biomes.IS_NETHER_FOREST) ? 0x9e2a4a : 0xa83a32;
+        if (b.is(BiomeTags.IS_NETHER) || is(b, Tags.Biomes.IS_NETHER)) {
+            return is(b, Tags.Biomes.IS_NETHER_FOREST) ? 0x9e2a4a : 0xa83a32;
         }
-        if (b.is(BiomeTags.IS_END) || b.is(Tags.Biomes.IS_END)) {
+        if (b.is(BiomeTags.IS_END) || is(b, Tags.Biomes.IS_END)) {
             return 0x9a86d8;
         }
-        if (b.is(Tags.Biomes.IS_CAVE) || b.is(Tags.Biomes.IS_UNDERGROUND)) {
-            return b.is(Tags.Biomes.IS_LUSH) ? 0x3d5a12 : 0x5a3f36;
+        if (is(b, Tags.Biomes.IS_CAVE) || is(b, Tags.Biomes.IS_UNDERGROUND)) {
+            return is(b, Tags.Biomes.IS_LUSH) ? 0x3d5a12 : 0x5a3f36;
         }
-        if (b.is(BiomeTags.IS_DEEP_OCEAN) || b.is(Tags.Biomes.IS_DEEP_OCEAN)) {
+        if (b.is(BiomeTags.IS_DEEP_OCEAN) || is(b, Tags.Biomes.IS_DEEP_OCEAN)) {
             return cold ? 0x404090 : warm ? 0x00005a : 0x000038;
         }
-        if (b.is(BiomeTags.IS_OCEAN) || b.is(Tags.Biomes.IS_OCEAN)) {
+        if (b.is(BiomeTags.IS_OCEAN) || is(b, Tags.Biomes.IS_OCEAN)) {
             return cold ? 0x7070d6 : warm ? 0x0000ac : 0x000070;
         }
-        if (b.is(BiomeTags.IS_RIVER) || b.is(Tags.Biomes.IS_RIVER)) {
+        if (b.is(BiomeTags.IS_RIVER) || is(b, Tags.Biomes.IS_RIVER)) {
             return cold ? 0xa0a0ff : 0x1f3fff;
         }
-        if (b.is(Tags.Biomes.IS_STONY_SHORES)) {
+        if (is(b, Tags.Biomes.IS_STONY_SHORES)) {
             return 0xa2a284;
         }
-        if (b.is(BiomeTags.IS_BEACH) || b.is(Tags.Biomes.IS_BEACH)) {
+        if (b.is(BiomeTags.IS_BEACH) || is(b, Tags.Biomes.IS_BEACH)) {
             return cold ? 0xfaf0c0 : 0xfade55;
         }
-        if (b.is(Tags.Biomes.IS_MUSHROOM)) {
+        if (is(b, Tags.Biomes.IS_MUSHROOM)) {
             return 0xd400d4;
         }
-        if (b.is(BiomeTags.IS_BADLANDS) || b.is(Tags.Biomes.IS_BADLANDS)) {
+        if (b.is(BiomeTags.IS_BADLANDS) || is(b, Tags.Biomes.IS_BADLANDS)) {
             return 0xd94515;
         }
-        if (b.is(Tags.Biomes.IS_DESERT)) {
+        if (is(b, Tags.Biomes.IS_DESERT)) {
             return 0xfa9418;
         }
-        if (b.is(Tags.Biomes.IS_MOUNTAIN_PEAK)) {
+        if (is(b, Tags.Biomes.IS_MOUNTAIN_PEAK)) {
             return cold ? 0xdcdcc8 : 0x7b8f74;
         }
-        if (b.is(Tags.Biomes.IS_SWAMP)) {
+        if (is(b, Tags.Biomes.IS_SWAMP)) {
             return 0x2ccc8e;
         }
-        if (b.is(BiomeTags.IS_JUNGLE) || b.is(Tags.Biomes.IS_JUNGLE)) {
+        if (b.is(BiomeTags.IS_JUNGLE) || is(b, Tags.Biomes.IS_JUNGLE)) {
             return 0x537b09;
         }
-        if (b.is(BiomeTags.IS_SAVANNA) || b.is(Tags.Biomes.IS_SAVANNA)) {
+        if (b.is(BiomeTags.IS_SAVANNA) || is(b, Tags.Biomes.IS_SAVANNA)) {
             return 0xbdb25f;
         }
-        if (b.is(Tags.Biomes.IS_ICY)) {
+        if (is(b, Tags.Biomes.IS_ICY)) {
             return 0xb4dcdc;
         }
-        if (b.is(BiomeTags.IS_TAIGA) || b.is(Tags.Biomes.IS_TAIGA) || b.is(Tags.Biomes.IS_CONIFEROUS_TREE)) {
+        if (b.is(BiomeTags.IS_TAIGA) || is(b, Tags.Biomes.IS_TAIGA) || is(b, Tags.Biomes.IS_CONIFEROUS_TREE)) {
             return cold ? 0x31554a : 0x0b6659;
         }
-        if (b.is(Tags.Biomes.IS_BIRCH_FOREST)) {
+        if (is(b, Tags.Biomes.IS_BIRCH_FOREST)) {
             return 0x307444;
         }
-        if (b.is(Tags.Biomes.IS_FLOWER_FOREST)) {
+        if (is(b, Tags.Biomes.IS_FLOWER_FOREST)) {
             return 0x2d8e49;
         }
-        if (b.is(Tags.Biomes.IS_SPOOKY) || b.is(Tags.Biomes.IS_DEAD) || b.is(Tags.Biomes.IS_WASTELAND)) {
+        if (is(b, Tags.Biomes.IS_SPOOKY) || is(b, Tags.Biomes.IS_DEAD) || is(b, Tags.Biomes.IS_WASTELAND)) {
             return 0x6b5f4a;
         }
-        if (b.is(BiomeTags.IS_FOREST) || b.is(Tags.Biomes.IS_FOREST)) {
+        if (b.is(BiomeTags.IS_FOREST) || is(b, Tags.Biomes.IS_FOREST)) {
             return cold ? 0x2f5d4a : 0x056621;
         }
-        if (b.is(BiomeTags.IS_MOUNTAIN) || b.is(Tags.Biomes.IS_MOUNTAIN) || b.is(Tags.Biomes.IS_MOUNTAIN_SLOPE)
-                || b.is(BiomeTags.IS_HILL) || b.is(Tags.Biomes.IS_WINDSWEPT)) {
+        if (b.is(BiomeTags.IS_MOUNTAIN) || is(b, Tags.Biomes.IS_MOUNTAIN) || is(b, Tags.Biomes.IS_MOUNTAIN_SLOPE)
+                || b.is(BiomeTags.IS_HILL) || is(b, Tags.Biomes.IS_WINDSWEPT)) {
             return cold ? 0xc4c4c4 : 0x707070;
         }
         if (cold) {
             return 0xeef2f5;
         }
-        if (b.is(Tags.Biomes.IS_PLAINS)) {
+        if (is(b, Tags.Biomes.IS_PLAINS)) {
             return 0x8db360;
         }
-        if (b.is(Tags.Biomes.IS_SANDY) || (!climate.hasPrecipitation() && temperature > 1.0F)) {
+        if (is(b, Tags.Biomes.IS_SANDY) || (!climate.hasPrecipitation() && temperature > 1.0F)) {
             return 0xe8c070;
         }
         return ColorMath.climate(temperature, climate.downfall());
@@ -232,48 +232,65 @@ final class BiomeColors {
     }
 
     /**
-     * Convention tags ("c:"). NeoForge and Fabric use the same ones, and biome mods add their biomes to them,
-     * which is what tells a modded swamp from a modded desert.
+     * Convention tags, which biome mods add their biomes to: they're what tells a modded swamp from a modded
+     * desert. In 1.20.1 Forge and Fabric name them differently ("forge:is_swamp", "c:swamp"), so each
+     * category checks both. Vanilla's own tags ({@link BiomeTags}) are checked alongside where they exist.
      */
     private static final class Tags {
         private static final class Biomes {
-            static final TagKey<Biome> IS_BADLANDS = tag("is_badlands");
-            static final TagKey<Biome> IS_BEACH = tag("is_beach");
-            static final TagKey<Biome> IS_BIRCH_FOREST = tag("is_birch_forest");
-            static final TagKey<Biome> IS_CAVE = tag("is_cave");
-            static final TagKey<Biome> IS_CONIFEROUS_TREE = tag("is_tree/coniferous");
-            static final TagKey<Biome> IS_DEAD = tag("is_dead");
-            static final TagKey<Biome> IS_DEEP_OCEAN = tag("is_deep_ocean");
-            static final TagKey<Biome> IS_DESERT = tag("is_desert");
-            static final TagKey<Biome> IS_END = tag("is_end");
-            static final TagKey<Biome> IS_FLOWER_FOREST = tag("is_flower_forest");
-            static final TagKey<Biome> IS_FOREST = tag("is_forest");
-            static final TagKey<Biome> IS_ICY = tag("is_icy");
-            static final TagKey<Biome> IS_JUNGLE = tag("is_jungle");
-            static final TagKey<Biome> IS_LUSH = tag("is_lush");
-            static final TagKey<Biome> IS_MOUNTAIN = tag("is_mountain");
-            static final TagKey<Biome> IS_MOUNTAIN_PEAK = tag("is_mountain/peak");
-            static final TagKey<Biome> IS_MOUNTAIN_SLOPE = tag("is_mountain/slope");
-            static final TagKey<Biome> IS_MUSHROOM = tag("is_mushroom");
-            static final TagKey<Biome> IS_NETHER = tag("is_nether");
-            static final TagKey<Biome> IS_NETHER_FOREST = tag("is_nether_forest");
-            static final TagKey<Biome> IS_OCEAN = tag("is_ocean");
-            static final TagKey<Biome> IS_PLAINS = tag("is_plains");
-            static final TagKey<Biome> IS_RIVER = tag("is_river");
-            static final TagKey<Biome> IS_SANDY = tag("is_sandy");
-            static final TagKey<Biome> IS_SAVANNA = tag("is_savanna");
-            static final TagKey<Biome> IS_SNOWY = tag("is_snowy");
-            static final TagKey<Biome> IS_SPOOKY = tag("is_spooky");
-            static final TagKey<Biome> IS_STONY_SHORES = tag("is_stony_shores");
-            static final TagKey<Biome> IS_SWAMP = tag("is_swamp");
-            static final TagKey<Biome> IS_TAIGA = tag("is_taiga");
-            static final TagKey<Biome> IS_UNDERGROUND = tag("is_underground");
-            static final TagKey<Biome> IS_WASTELAND = tag("is_wasteland");
-            static final TagKey<Biome> IS_WINDSWEPT = tag("is_windswept");
+            static final Tag IS_BADLANDS = tag("c:badlands", "c:mesa");
+            static final Tag IS_BEACH = tag("c:beach");
+            static final Tag IS_BIRCH_FOREST = tag("c:birch_forest");
+            static final Tag IS_CAVE = tag("forge:is_cave", "c:caves");
+            static final Tag IS_CONIFEROUS_TREE = tag("forge:is_coniferous", "c:tree_coniferous");
+            static final Tag IS_DEAD = tag("forge:is_dead", "c:dead");
+            static final Tag IS_DEEP_OCEAN = tag("c:deep_ocean");
+            static final Tag IS_DESERT = tag("forge:is_desert", "c:desert");
+            static final Tag IS_END = tag("c:in_the_end");
+            static final Tag IS_FLOWER_FOREST = tag("c:flower_forests");
+            static final Tag IS_FOREST = tag("c:forest");
+            static final Tag IS_ICY = tag("c:icy");
+            static final Tag IS_JUNGLE = tag("c:jungle");
+            static final Tag IS_LUSH = tag("forge:is_lush");
+            static final Tag IS_MOUNTAIN = tag("forge:is_mountain", "c:mountain");
+            static final Tag IS_MOUNTAIN_PEAK = tag("forge:is_peak", "c:mountain_peak");
+            static final Tag IS_MOUNTAIN_SLOPE = tag("forge:is_slope", "c:mountain_slope");
+            static final Tag IS_MUSHROOM = tag("forge:is_mushroom", "c:mushroom");
+            static final Tag IS_NETHER = tag("c:in_nether");
+            static final Tag IS_NETHER_FOREST = tag("c:nether_forests");
+            static final Tag IS_OCEAN = tag("c:ocean");
+            static final Tag IS_PLAINS = tag("forge:is_plains", "c:plains");
+            static final Tag IS_RIVER = tag("c:river");
+            static final Tag IS_SANDY = tag("forge:is_sandy");
+            static final Tag IS_SAVANNA = tag("c:savanna");
+            static final Tag IS_SNOWY = tag("forge:is_snowy", "c:snowy");
+            static final Tag IS_SPOOKY = tag("forge:is_spooky");
+            static final Tag IS_STONY_SHORES = tag("c:stony_shores");
+            static final Tag IS_SWAMP = tag("forge:is_swamp", "c:swamp");
+            static final Tag IS_TAIGA = tag("c:taiga");
+            static final Tag IS_UNDERGROUND = tag("forge:is_underground", "c:underground");
+            static final Tag IS_WASTELAND = tag("forge:is_wasteland", "c:wasteland");
+            static final Tag IS_WINDSWEPT = tag("c:windswept", "c:extreme_hills");
 
-            private static TagKey<Biome> tag(String path) {
-                return TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("c", path));
+            private static Tag tag(String... ids) {
+                List<TagKey<Biome>> keys = new ArrayList<>();
+                for (String id : ids) {
+                    keys.add(TagKey.create(Registries.BIOME, ResourceLocation.tryParse(id)));
+                }
+                return new Tag(List.copyOf(keys));
             }
         }
+    }
+
+    /** One category's tags. A biome belongs to it when it's in any of them. */
+    private record Tag(List<TagKey<Biome>> keys) {}
+
+    private static boolean is(Holder<Biome> biome, Tag tag) {
+        for (TagKey<Biome> key : tag.keys()) {
+            if (biome.is(key)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

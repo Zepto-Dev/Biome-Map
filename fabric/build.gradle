@@ -7,7 +7,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "${mod_id}-fabric"
+    archivesName = "${mod_id}-fabric-${minecraft_version}"
 }
 
 repositories {
@@ -31,7 +31,7 @@ configurations {
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    // Mojang's names, as on NeoForge, so both loaders compile the same code.
+    // Mojang's names, as on Forge, so both loaders compile the same code.
     mappings loom.layered {
         officialMojangMappings()
         parchment("org.parchmentmc.data:parchment-${parchment_minecraft_version}:${parchment_mappings_version}@zip")
@@ -48,12 +48,12 @@ loom {
     accessWidenerPath = file('src/main/resources/biomemap.accesswidener')
 }
 
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Minecraft 1.20.1 runs on Java 17.
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release = 21
+    options.release = 17
 }
 
 tasks.named('compileJava', JavaCompile) {

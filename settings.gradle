@@ -14,6 +14,6 @@ plugins {
 
 rootProject.name = 'biomemap'
 
-// common: the mod itself, written against plain Minecraft. neoforge and fabric each build a jar from it
+// common: the mod itself, written against plain Minecraft. forge and fabric each build a jar from it
 // plus their small entry point.
-include 'common', 'neoforge', 'fabric'
+include 'common', 'forge', 'fabric'

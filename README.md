@@ -1,7 +1,8 @@
 # Biome Map
 
 One command maps every biome and structure around you, modded ones included, into an interactive map
-you open in your browser. For Minecraft 1.21.1 on NeoForge and Fabric.
+you open in your browser. For Minecraft 1.20.1 on Forge, NeoForge and Fabric. Versions for Minecraft
+1.21.1 and 1.21.11 (NeoForge and Fabric) are on this repository's `main` and `1.21.11` branches.
 
 The mod adds a `/biomemap` command that asks your world's real generator which biome goes where and
 which structures generate, then saves:
@@ -22,21 +23,24 @@ Copy the jar for your mod loader into your instance's `mods` folder:
 
 | Loader | Jar | Also needs |
 | --- | --- | --- |
-| NeoForge 21.1.251 or later | `biomemap-neoforge-1.1.0.jar` | nothing else |
-| Fabric Loader 0.16 or later | `biomemap-fabric-1.1.0.jar` | [Fabric API](https://modrinth.com/mod/fabric-api) |
+| Forge 47 (any Forge for 1.20.1) | `biomemap-forge-1.20.1-1.1.1.jar` | nothing else |
+| NeoForge for 1.20.1 (47.1) | `biomemap-forge-1.20.1-1.1.1.jar`, the same jar | nothing else |
+| Fabric Loader 0.14.21 or later | `biomemap-fabric-1.20.1-1.1.1.jar` | [Fabric API](https://modrinth.com/mod/fabric-api) |
 
-Both versions do exactly the same thing and make the same maps.
+NeoForge started as a fork of Forge 47.1, and for 1.20.1 it still runs Forge mods, so one jar covers
+both. All versions do exactly the same thing and make the same maps.
 
 ## Build the jars
 
-To build the jars yourself you need a Java Development Kit (JDK) 21 or newer.
+To build the jars yourself you need a Java Development Kit (JDK) 17 or newer. Gradle downloads JDK 17,
+which Minecraft 1.20.1 uses, if it isn't installed.
 
 ```
 gradlew build          (Windows: gradlew.bat build)
 ```
 
-The first build downloads Minecraft, NeoForge and Fabric and takes a few minutes. The jars end up in
-`neoforge/build/libs/biomemap-neoforge-1.1.0.jar` and `fabric/build/libs/biomemap-fabric-1.1.0.jar`.
+The first build downloads Minecraft, Forge and Fabric and takes a few minutes. The jars end up in
+`forge/build/libs/biomemap-forge-1.20.1-1.1.1.jar` and `fabric/build/libs/biomemap-fabric-1.20.1-1.1.1.jar`.
 
 ## Use it
 
@@ -97,19 +101,22 @@ browser from 2023 or later.
 
 - **Biome placement is exact**: it's the same function the game calls when it generates chunks.
   In tests against chunks the game really generated (vanilla, and with TerraBlender + Biomes O'
-  Plenty), the map matched 4,095 of 4,096 cells. The one difference sat exactly on the border
-  between two biomes' climate ranges, where the game itself can pick either one.
+  Plenty), the map matched 8,605 of 8,608 cells in surface mode and 4,095 of 4,096 in exact mode.
+  The few differences sat exactly on the border between two biomes' climate ranges, where the game
+  itself can pick either one.
 - **Structures are worked out the way world generation does it**: the same candidate chunks for
   each structure type, the same random pick when several structures share a type, and then the
   structure's own placement code with its biome and terrain checks. That's why modded structures
   and modded placement rules work too. In tests against chunks the game really generated, the map
   found every structure that generated and listed none that didn't:
-  - vanilla: 96 of 96 in the Overworld, 17 of 17 in the Nether;
-  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 162 of 162 in the
-    Overworld and 85 of 85 in the Nether, covering 109 different structures.
-- **NeoForge and Fabric give the same maps.** With the same seed and mods, the two versions made
-  identical maps in tests, both vanilla and with the three mods above. Chunks generated on Fabric
-  matched the map too: 63 of 63 structures in the Overworld, 44 of 44 in the Nether.
+  - vanilla: 196 of 196 in the Overworld, 148 of 148 in the Nether, 3 of 3 in the End;
+  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 333 of 333 in the
+    Overworld, 210 of 210 in the Nether and 9 of 9 in the End, covering 90 different
+    structures, on Forge and on Fabric.
+- **Forge, NeoForge and Fabric give the same maps.** With the same seed, the three made identical
+  maps in tests. With Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns, the biomes
+  were identical too, but the Forge world had 5 underground houses from Dungeons and Taverns (out of
+  about 1,000 structures) that the Fabric world didn't. Each map matched its own loader's world.
 - **A marker shows where a structure starts**, the same point `/locate` gives. Big structures such
   as villages and ancient cities spread out from there.
 - **Very common structure types can be left out of big maps.** The map checks at most 25,000
@@ -136,8 +143,8 @@ server:
 
 1. **Get the seed.** Ask an admin, or run `/seed` if you're an operator.
 2. **Use the same modpack**, with the same mod versions and settings: biome and structure mods
-   often have options. Copy the server's `config` folder into your instance. If it's a NeoForge
-   server with a `world/serverconfig` folder, copy that into your singleplayer world's folder after
+   often have options. Copy the server's `config` folder into your instance. If it's a Forge or
+   NeoForge server with a `world/serverconfig` folder, copy that into your singleplayer world's folder after
    creating the world, then reopen the world.
 3. **Add the server's datapacks.** Copy the files from the server's `world/datapacks` folder into
    the Data Packs screen when you create the world.
@@ -173,11 +180,12 @@ restart needed. Delete the file to regenerate the list after adding mods.
 - Biome time grows with the number of pixels: (2 × radius ÷ step)². Doubling the step makes the
   biome map four times faster.
 - Structure time grows with the area and with how many structure types your mods add.
-- Measured on a 4-core test machine, for the default map (4096 × 4096 blocks, 1024 × 1024 pixels),
-  with the same times on NeoForge and Fabric:
-  - vanilla: about 13 seconds, half of it for structures (502 structures);
-  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: 30 to 40 seconds, about
-    7 for biomes and the rest for structures (774 structures of 42 types).
+- Measured on a 4-core test machine, for the default map (4096 × 4096 blocks, 1024 × 1024 pixels):
+  - vanilla: about 15 seconds on Forge, NeoForge and Fabric (445 structures);
+  - with Biomes O' Plenty, Repurposed Structures and Dungeons and Taverns: about 50 seconds on
+    Fabric and 80 to 100 seconds on Forge, nearly all of it for structures (about 645 structures of
+    67 types). Structure checks work out the terrain height, and with these mods the game does
+    that more slowly on Forge.
   Most gaming PCs have more cores and will be faster.
 - `exact` mode runs the full terrain generator for every pixel, about 150 times slower: on the same
   machine a 256 × 256 pixel map took about a minute. Start with a small radius or a large step.
@@ -185,7 +193,7 @@ restart needed. Delete the file to regenerate the list after adding mods.
 ## Project layout
 
 Almost all of the mod lives in `common`, which both loaders build from. It compiles against plain
-Minecraft, so it can't use NeoForge or Fabric code by accident; the few things that differ go
+Minecraft, so it can't use Forge or Fabric code by accident; the few things that differ go
 through `Platform`.
 
 ```
@@ -200,10 +208,10 @@ common/src/main/java/io/github/zeptodev/biomemap/
   ColorMath.java         color helpers (no Minecraft code)
   MapExport.java         PNG and HTML writer (no Minecraft code)
 common/src/main/resources/io/github/zeptodev/biomemap/viewer.html   the map viewer template
-neoforge/   NeoForge entry point (BiomeMapNeoForge.java) and neoforge.mods.toml
+forge/      Forge entry point (BiomeMapForge.java) and mods.toml
 fabric/     Fabric entry points (BiomeMapFabric.java, BiomeMapFabricClient.java), fabric.mod.json
             and an access widener that lets the mod read biome climates
 ```
 
-`gradlew :neoforge:runClient` or `gradlew :fabric:runClient` starts a development copy of the game
+`gradlew :forge:runClient` or `gradlew :fabric:runClient` starts a development copy of the game
 with the mod loaded.

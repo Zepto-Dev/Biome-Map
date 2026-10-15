@@ -15,7 +15,9 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.ChunkPos;
@@ -80,9 +82,9 @@ final class StructureScan {
         this.minChunkZ = minZ >> 4;
         this.maxChunkX = maxX >> 4;
         this.maxChunkZ = maxZ >> 4;
-        ResourceManager resources = level.getServer().getResourceManager();
+        MinecraftServer server = level.getServer();
         for (Holder<StructureSet> set : state.possibleStructureSets()) {
-            sources.put(set, sourceOf(resources, set));
+            sources.put(set, sourceOf(server, set));
         }
     }
 
@@ -91,11 +93,12 @@ final class StructureScan {
      * uses "nova_structures"), so this asks which pack holds the set's file. It takes the lowest such pack,
      * the one that added the set, so a mod that only tweaks a vanilla set doesn't claim it.
      */
-    private static Source sourceOf(ResourceManager resources, Holder<StructureSet> set) {
+    private static Source sourceOf(MinecraftServer server, Holder<StructureSet> set) {
         ResourceLocation id = set.unwrapKey().map(key -> key.location()).orElse(null);
         if (id == null) {
             return new Source("unknown", "Unknown");
         }
+        ResourceManager resources = server.getResourceManager();
         List<Resource> stack = resources.getResourceStack(id.withPath(path -> "worldgen/structure_set/" + path + ".json"));
         if (!stack.isEmpty()) {
             Resource first = stack.get(0);
@@ -107,7 +110,8 @@ final class StructureScan {
             if (modId != null) {
                 return new Source(modId, modName(modId));
             }
-            String title = first.source().location().title().getString(); // a datapack, e.g. "file/towers.zip"
+            Pack datapack = server.getPackRepository().getPack(pack); // a datapack, e.g. "file/towers.zip"
+            String title = datapack != null ? datapack.getTitle().getString() : "";
             return new Source(pack, title.isBlank() ? pack : title);
         }
         return new Source(id.getNamespace(), modName(id.getNamespace()));
@@ -230,7 +234,7 @@ final class StructureScan {
                     for (int z = rz * spacing; z < (rz + 1) * spacing; z++) {
                         if ((x != expected.x || z != expected.z) && spread.isStructureChunk(state, x, z)) {
                             BiomeMap.LOGGER.info("Structure set {} spreads differently from vanilla; checking every chunk",
-                                    set.getRegisteredName());
+                                    set.unwrapKey().map(key -> key.location().toString()).orElse("(unregistered)"));
                             return false;
                         }
                     }
