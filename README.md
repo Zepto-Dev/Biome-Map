@@ -1,7 +1,9 @@
 # Biome Map
 
 One command maps every biome and structure around you, modded ones included, into an interactive map
-you open in your browser. For Minecraft 1.21.1 on NeoForge and Fabric.
+you open in your browser. For Minecraft 1.21.1 on NeoForge and Fabric. Versions for Minecraft 1.20.1
+(Forge, NeoForge and Fabric) and 1.21.11 (NeoForge and Fabric) are on this repository's `1.20.1` and
+`1.21.11` branches.
 
 The mod adds a `/biomemap` command that asks your world's real generator which biome goes where and
 which structures generate, then saves:
@@ -22,8 +24,8 @@ Copy the jar for your mod loader into your instance's `mods` folder:
 
 | Loader | Jar | Also needs |
 | --- | --- | --- |
-| NeoForge 21.1.251 or later | `biomemap-neoforge-1.1.0.jar` | nothing else |
-| Fabric Loader 0.16 or later | `biomemap-fabric-1.1.0.jar` | [Fabric API](https://modrinth.com/mod/fabric-api) |
+| NeoForge 21.1.251 or later | `biomemap-neoforge-1.21.1-1.1.1.jar` | nothing else |
+| Fabric Loader 0.16 or later | `biomemap-fabric-1.21.1-1.1.1.jar` | [Fabric API](https://modrinth.com/mod/fabric-api) |
 
 Both versions do exactly the same thing and make the same maps.
 
@@ -36,7 +38,7 @@ gradlew build          (Windows: gradlew.bat build)
 ```
 
 The first build downloads Minecraft, NeoForge and Fabric and takes a few minutes. The jars end up in
-`neoforge/build/libs/biomemap-neoforge-1.1.0.jar` and `fabric/build/libs/biomemap-fabric-1.1.0.jar`.
+`neoforge/build/libs/biomemap-neoforge-1.21.1-1.1.1.jar` and `fabric/build/libs/biomemap-fabric-1.21.1-1.1.1.jar`.
 
 ## Use it
 

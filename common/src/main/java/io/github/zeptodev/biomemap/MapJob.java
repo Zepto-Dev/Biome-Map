@@ -42,6 +42,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
+import net.minecraft.world.level.biome.TheEndBiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.DensityFunctions;
@@ -124,10 +125,12 @@ final class MapJob {
         this.sampler = randomState.sampler();
         // Surface biomes are what the climate parameters pick at depth 0. Cave biomes (lush caves, dripstone
         // caves, deep dark) only win at larger depths, so a sampler whose depth is fixed at 0 sees exactly the
-        // surface layer without having to work out the terrain height first.
-        this.surfaceSampler = new Climate.Sampler(sampler.temperature(), sampler.humidity(),
-                sampler.continentalness(), sampler.erosion(), DensityFunctions.zero(), sampler.weirdness(),
-                sampler.spawnTarget());
+        // surface layer without having to work out the terrain height first. The End's biome source doesn't
+        // use depth, and mods can attach state to the game's own sampler there (Fabric API seeds its End biome
+        // noise from it), so the End keeps the real one.
+        this.surfaceSampler = biomeSource instanceof TheEndBiomeSource ? sampler
+                : new Climate.Sampler(sampler.temperature(), sampler.humidity(), sampler.continentalness(),
+                        sampler.erosion(), DensityFunctions.zero(), sampler.weirdness(), sampler.spawnTarget());
         this.depth = randomState.router().depth();
         this.seaLevel = generator.getSeaLevel();
         this.minY = level.getMinBuildHeight();
